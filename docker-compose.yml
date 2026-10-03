@@ -15,7 +15,7 @@ services:
       - DOCKER_SOCKET=/var/run/docker.sock
       - HOST_HOME=${HOST_HOME:-${HOME}}
       - HOST_LOCAL_MODELS_DIR=${HOST_LOCAL_MODELS_DIR:-${HOME}/localLLM/models}
-      - SYNDAE_ALLOWED_ORIGINS=${SYNDAE_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      - SYNDAE_ALLOWED_ORIGINS=${SYNDAE_ALLOWED_ORIGINS:-https://syndae.veds.me,http://localhost:3000,http://127.0.0.1:3000}
       - SYNDAE_ACCESS_KEY=${SYNDAE_ACCESS_KEY:-syndae-local-dev-key}
     volumes:
       - ./memory:/app/memory
@@ -34,3 +34,12 @@ services:
       - render
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      default:
+        aliases:
+          - syndae
+          - syndae-harness
+
+networks:
+  default:
+    name: syndae_default

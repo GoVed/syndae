@@ -51,6 +51,11 @@ pub fn build_agent_system_prompt(
 
     system_context.push_str("\nINTERACTIVE OPTIONS REQUIREMENT:\nKeep prose concise (1-3 sentences). Formulate all options strictly in clean English. Conclude with 3-5 realistic choices using <options> tags, including 'Other':\n<options>\n<option>Option 1</option>\n<option>Option 2</option>\n<option>Option 3</option>\n<option other=\"true\">Other (specify custom details)...</option>\n</options>\n");
 
+    system_context.push_str("\nCONVERSATION TOPIC & TITLE GUIDANCE:\n");
+    system_context.push_str("At the very end of your response on every turn (after any options or closing remarks), ALWAYS suggest a short, relevant title (2 to 5 words) that summarizes the current topic or task of this conversation thread using a <title> tag:\n");
+    system_context.push_str("<title>Concise Topic Title</title>\n");
+    system_context.push_str("Make it concise, human-friendly, and specific to the actual task or topic being discussed (e.g. `<title>Analyze System Telemetry</title>`, `<title>Reply to WhatsApp Message</title>`, `<title>Trip Planning for Vacation</title>`). Never use generic placeholders like 'New Mission Workspace', 'New Chat', or 'Active Session'. Do not wrap the title text in quotes.\n");
+
     system_context.push_str("\nUSER ONBOARDING & ENROLLMENT:\n");
     system_context.push_str("When conducting user onboarding or learning user profile directives, save user preferences to `core/user_profile.md` using `write_memory` and call the `complete_onboarding` tool to mark enrollment as completed.\n");
 
@@ -173,6 +178,8 @@ pub fn enrich_user_turn_content(
     } else {
         content.push_str("\n\n[CRITICAL REMINDER: Formulate all <option> choices strictly in 100% standard English. Never draft foreign dialect phrases inside <option> tags.]");
     }
+
+    content.push_str("\n\n[SYSTEM REMINDER: Conclude your response with <title>Concise Topic Title</title> (2-5 words) summarizing this conversation's current topic.]");
 
     content
 }
@@ -303,6 +310,7 @@ mod tests {
         assert!(content.contains("[DIRECTIVE: PROPOSING REPLIES TO EXTERNAL CONTACTS OR GROUPS:"));
         assert!(content.contains("Propose ALL reply options strictly in 100% standard English"));
         assert!(content.contains("NEVER draft Gujarati, Gujlish"));
+        assert!(content.contains("<title>Concise Topic Title</title>"));
     }
 
     #[test]

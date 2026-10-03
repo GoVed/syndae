@@ -60,7 +60,7 @@ describe('ChatView Layout & HITL Deterministic Gate Tests', () => {
     expect(mainStream?.className).toContain('overflow-hidden');
   });
 
-  it('Sidebar session drawer is flex-shrink-0 and active skills selector is flex-shrink-0', async () => {
+  it('Sidebar session drawer is flex-shrink-0 and manual skills selector is removed', async () => {
     let container!: HTMLElement;
     await act(async () => {
       const res = render(
@@ -89,9 +89,7 @@ describe('ChatView Layout & HITL Deterministic Gate Tests', () => {
     expect(aside?.className).toContain('h-full');
     expect(aside?.className).toContain('overflow-hidden');
 
-    const availableSkillsets = screen.getByText('AVAILABLE SKILLSETS');
-    const skillContainer = availableSkillsets.closest('div')?.parentElement;
-    expect(skillContainer?.className).toContain('flex-shrink-0');
+    expect(screen.queryByText('AVAILABLE SKILLSETS')).not.toBeInTheDocument();
   });
 
   it('Input bar is flex-shrink-0 so prompt textarea is never pushed off bottom', async () => {

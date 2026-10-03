@@ -29,26 +29,26 @@ export const FirstBootScreen: React.FC<FirstBootScreenProps> = ({
   onSubmit,
 }) => {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950 px-4 py-6 font-mono select-none overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950 px-4 py-6 select-none overflow-y-auto">
       {/* Background Ambience */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(16,185,129,0.12),rgba(255,255,255,0))]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(255,255,255,0.05),rgba(255,255,255,0))]" />
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#18181b_1px,transparent_1px),linear-gradient(to_bottom,#18181b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20 pointer-events-none" />
 
       <div className="relative w-full max-w-4xl my-auto">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
           
           {/* Pre-Setup Guidance Card */}
-          <div className="md:col-span-5 rounded-2xl border border-emerald-500/20 bg-zinc-900/80 p-6 sm:p-7 shadow-2xl backdrop-blur-xl flex flex-col justify-between">
+          <div className="md:col-span-5 rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 sm:p-7 shadow-2xl backdrop-blur-xl flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-950/40 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-zinc-700/80 bg-zinc-800/80 text-zinc-200 shadow-md">
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-zinc-100 uppercase tracking-wider font-sans">
                     Welcome to Syndae
                   </h2>
-                  <p className="text-[11px] text-emerald-400 font-mono">
+                  <p className="text-[11px] text-zinc-400 font-medium">
                     Getting Started Guide
                   </p>
                 </div>
@@ -61,7 +61,7 @@ export const FirstBootScreen: React.FC<FirstBootScreenProps> = ({
               {/* 3 Step Walkthrough */}
               <div className="space-y-3.5 text-xs font-sans">
                 <div className="flex items-start gap-3 rounded-lg border border-zinc-800/80 bg-zinc-950/40 p-3">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 font-mono text-[11px] font-bold">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-zinc-200 font-mono text-[11px] font-bold border border-zinc-700">
                     1
                   </div>
                   <div>
@@ -73,7 +73,7 @@ export const FirstBootScreen: React.FC<FirstBootScreenProps> = ({
                 </div>
 
                 <div className="flex items-start gap-3 rounded-lg border border-zinc-800/80 bg-zinc-950/40 p-3">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 font-mono text-[11px] font-bold">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-zinc-200 font-mono text-[11px] font-bold border border-zinc-700">
                     2
                   </div>
                   <div>
@@ -85,7 +85,7 @@ export const FirstBootScreen: React.FC<FirstBootScreenProps> = ({
                 </div>
 
                 <div className="flex items-start gap-3 rounded-lg border border-zinc-800/80 bg-zinc-950/40 p-3">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 font-mono text-[11px] font-bold">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-zinc-200 font-mono text-[11px] font-bold border border-zinc-700">
                     3
                   </div>
                   <div>
@@ -102,21 +102,21 @@ export const FirstBootScreen: React.FC<FirstBootScreenProps> = ({
             <div className="mt-6 pt-4 border-t border-zinc-800/70 font-mono text-[10px] space-y-1.5 text-zinc-400">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   Local AI Engine:
                 </span>
-                <span className="text-emerald-400 font-medium">Ready & Connected</span>
+                <span className="text-zinc-200 font-medium">Ready & Connected</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   Privacy Protection:
                 </span>
                 <span className="text-zinc-300">100% On-Device</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   Local Memory Vault:
                 </span>
                 <span className="text-zinc-300">Encrypted Storage</span>
@@ -129,13 +129,13 @@ export const FirstBootScreen: React.FC<FirstBootScreenProps> = ({
             <div>
               {/* Enclave Status Header */}
               <div className="mb-6 flex flex-col items-center text-center">
-                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-950/40 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-700/80 bg-zinc-800/80 text-zinc-200 shadow-md">
                   <Sparkles className="h-7 w-7" />
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[10px] tracking-widest text-emerald-400 uppercase font-semibold">
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
+                  <span className="text-[10px] tracking-widest text-zinc-400 uppercase font-semibold">
                     First Boot // Device Setup
                   </span>
                 </div>
@@ -170,7 +170,7 @@ export const FirstBootScreen: React.FC<FirstBootScreenProps> = ({
                       value={operatorName}
                       onChange={(e) => setOperatorName(e.target.value)}
                       placeholder="What should Syndae call you?"
-                      className="w-full rounded-lg border border-zinc-800 bg-zinc-950/60 py-2.5 pl-9 pr-3 text-sm text-zinc-100 placeholder-zinc-600 transition-colors focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+                      className="w-full rounded-lg border border-zinc-800 bg-zinc-950/60 py-2.5 pl-9 pr-3 text-sm text-zinc-100 placeholder-zinc-600 transition-colors focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
                     />
                   </div>
                 </div>
@@ -184,7 +184,7 @@ export const FirstBootScreen: React.FC<FirstBootScreenProps> = ({
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
                     placeholder="e.g. Student, Designer, Business Owner, Writer..."
-                    className="w-full rounded-lg border border-zinc-800 bg-zinc-950/60 py-2.5 px-3 text-sm text-zinc-100 placeholder-zinc-600 transition-colors focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+                    className="w-full rounded-lg border border-zinc-800 bg-zinc-950/60 py-2.5 px-3 text-sm text-zinc-100 placeholder-zinc-600 transition-colors focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
                   />
                 </div>
 
@@ -202,7 +202,7 @@ export const FirstBootScreen: React.FC<FirstBootScreenProps> = ({
                       onChange={(e) => setAccessKey(e.target.value)}
                       placeholder="••••••••••••"
                       autoFocus
-                      className="w-full rounded-lg border border-zinc-800 bg-zinc-950/60 py-2.5 pl-9 pr-3 text-sm text-zinc-100 placeholder-zinc-600 transition-colors focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+                      className="w-full rounded-lg border border-zinc-800 bg-zinc-950/60 py-2.5 pl-9 pr-3 text-sm text-zinc-100 placeholder-zinc-600 transition-colors focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
                     />
                   </div>
                 </div>
@@ -220,7 +220,7 @@ export const FirstBootScreen: React.FC<FirstBootScreenProps> = ({
                       value={confirmKey}
                       onChange={(e) => setConfirmKey(e.target.value)}
                       placeholder="••••••••••••"
-                      className="w-full rounded-lg border border-zinc-800 bg-zinc-950/60 py-2.5 pl-9 pr-3 text-sm text-zinc-100 placeholder-zinc-600 transition-colors focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+                      className="w-full rounded-lg border border-zinc-800 bg-zinc-950/60 py-2.5 pl-9 pr-3 text-sm text-zinc-100 placeholder-zinc-600 transition-colors focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
                     />
                   </div>
                 </div>
@@ -228,7 +228,7 @@ export const FirstBootScreen: React.FC<FirstBootScreenProps> = ({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 py-2.5 text-xs font-semibold text-zinc-950 uppercase tracking-wider transition-all hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50"
+                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 py-3 text-xs font-semibold text-white uppercase tracking-wider transition-all hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-md disabled:opacity-50 cursor-pointer"
                 >
                   {loading ? (
                     <span>Unlocking your assistant...</span>

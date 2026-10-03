@@ -18,7 +18,8 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub fn from_env() -> Self {
-        let host = std::env::var("SYNDAE_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+        let host = std::env::var("SYNDAE_HOST")
+            .unwrap_or_else(|_| "127.0.0.1".to_string());
         let port = std::env::var("SYNDAE_PORT")
             .ok()
             .and_then(|p| p.parse().ok())

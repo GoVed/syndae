@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   extractOptionsAndContent,
+  extractThoughtAndContent,
+  extractSuggestedTitle,
   parseToolEvent,
 } from '../components/ChatView';
 
@@ -122,5 +124,28 @@ Payload:
     expect(parsedHist?.protocol).toBe('WhatsApp');
     expect(parsedHist?.senderName).toBe('Sarah (155500011122233@lid)');
     expect(parsedHist?.messageText).toBe('hello syndae!');
+  });
+
+  it('extractSuggestedTitle extracts title and strips tag from content', () => {
+    const raw = `Here is your summary of the meeting.\n\n<title>Team Sprint Planning</title>`;
+    const { content, title } = extractSuggestedTitle(raw);
+    expect(content).toBe('Here is your summary of the meeting.');
+    expect(title).toBe('Team Sprint Planning');
+  });
+
+  it('extractSuggestedTitle ignores generic placeholders', () => {
+    const raw = `Let's start!\n<title>"New Mission Workspace"</title>`;
+    const { content, title } = extractSuggestedTitle(raw);
+    expect(content).toBe("Let's start!");
+    expect(title).toBeNull();
+  });
+
+  it('extractThoughtAndContent strips <title> tags from final rendered content', () => {
+    const raw = `<think>Internal thoughts</think>I have completed the task.\n\n<title>File Backup Completed</title>`;
+    const { thought, content } = extractThoughtAndContent(raw);
+    expect(thought).toBe('Internal thoughts');
+    expect(content).toBe('I have completed the task.');
+    expect(content).not.toContain('<title>');
+    expect(content).not.toContain('File Backup Completed');
   });
 });

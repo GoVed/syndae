@@ -49,6 +49,7 @@ export const App: React.FC = () => {
     loadMessages,
     handleCreateSession,
     handleDeleteSession,
+    handleRenameSession,
     handleSendPrompt,
     handleResolveTicket,
     handleSelectActiveModel,
@@ -65,9 +66,9 @@ export const App: React.FC = () => {
 
   if (authChecking) {
     return (
-      <div className="h-screen w-screen bg-zinc-950 flex flex-col items-center justify-center font-mono text-zinc-400">
-        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4" />
-        <span className="text-xs uppercase tracking-widest text-emerald-400">Initializing Enclave...</span>
+      <div className="h-screen w-screen bg-zinc-950 flex flex-col items-center justify-center font-sans text-zinc-400">
+        <div className="w-8 h-8 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin mb-4" />
+        <span className="text-xs uppercase tracking-widest text-zinc-400">Initializing Enclave...</span>
       </div>
     );
   }
@@ -158,6 +159,7 @@ export const App: React.FC = () => {
             onSelectSession={setActiveSession}
             onCreateSession={handleCreateSession}
             onDeleteSession={handleDeleteSession}
+            onRenameSession={handleRenameSession}
             pendingTickets={pendingTickets}
             onResolveTicket={handleResolveTicket}
             memoryFiles={memoryFiles}

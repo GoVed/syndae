@@ -53,6 +53,17 @@ export const useSyndaeApp = () => {
       aux.refreshModelData();
       aux.refreshToolsData();
       aux.refreshAuditData();
+
+      // Fetch any pending tickets on initial load
+      try {
+        const tRes = await fetch('/api/hitl/tickets');
+        const tData = await tRes.json();
+        if (tData.success && Array.isArray(tData.pending)) {
+          setPendingTickets(tData.pending);
+        }
+      } catch (err) {
+        console.error('Failed to fetch initial tickets', err);
+      }
     } catch (e) {
       console.error('Initial data fetch error', e);
     }
@@ -65,6 +76,9 @@ export const useSyndaeApp = () => {
     onConnected: payload => {
       if (payload?.pending_tickets) {
         setPendingTickets(payload.pending_tickets);
+      }
+      if (chat.activeSession?.id) {
+        chat.loadMessages(chat.activeSession.id);
       }
     },
     onApprovalTicket: ticket => {

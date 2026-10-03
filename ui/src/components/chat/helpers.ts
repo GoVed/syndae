@@ -148,7 +148,38 @@ export const extractThoughtAndContent = (
     if (thought.length === 0) thought = null;
   }
 
+  // Strip any <title>...</title> or <suggested_title>...</suggested_title> tags from visible content
+  content = content.replace(/<(?:title|suggested_title)>[\s\S]*?(?:<\/(?:title|suggested_title)>|$)/gi, '').trim();
+
   return { thought, content };
+};
+
+export const extractSuggestedTitle = (
+  rawContent: string
+): { content: string; title: string | null } => {
+  if (!rawContent) return { content: '', title: null };
+  const titleRegex = /<(?:title|suggested_title)>([\s\S]*?)(?:<\/(?:title|suggested_title)>|$)/i;
+  const match = rawContent.match(titleRegex);
+  let title: string | null = null;
+  let content = rawContent;
+  if (match) {
+    const rawTitle = match[1].replace(/["'`*#]/g, '').trim();
+    const lower = rawTitle.toLowerCase();
+    if (
+      rawTitle.length > 0 &&
+      rawTitle.length <= 60 &&
+      lower !== 'new mission workspace' &&
+      lower !== 'new chat' &&
+      lower !== 'new task' &&
+      lower !== 'active session' &&
+      lower !== 'untitled session' &&
+      lower !== 'chat'
+    ) {
+      title = rawTitle;
+    }
+    content = rawContent.replace(titleRegex, '').trim();
+  }
+  return { content, title };
 };
 
 export const extractOptionsAndContent = (

@@ -15,15 +15,35 @@ pub fn router() -> Router<AppState> {
     Router::new().route("/", get(ws_handler))
 }
 
+fn extract_domain(val: &str) -> &str {
+    let clean = val.trim().trim_end_matches('/');
+    let without_scheme = if let Some(stripped) = clean.strip_prefix("https://") {
+        stripped
+    } else if let Some(stripped) = clean.strip_prefix("http://") {
+        stripped
+    } else if let Some(stripped) = clean.strip_prefix("wss://") {
+        stripped
+    } else if let Some(stripped) = clean.strip_prefix("ws://") {
+        stripped
+    } else {
+        clean
+    };
+    without_scheme.split(':').next().unwrap_or("").trim()
+}
+
 fn is_origin_allowed(origin: &str, headers: &HeaderMap, config: &crate::config::AppConfig) -> bool {
     let origin_clean = origin.trim().trim_end_matches('/').to_lowercase();
+    let origin_domain = extract_domain(&origin_clean);
 
     // 1. If explicit allowed origins configured, check match
-    if !config.allowed_origins.is_empty() {
-        return config.allowed_origins.iter().any(|o| {
-            let o_clean = o.trim().trim_end_matches('/').to_lowercase();
-            origin_clean == o_clean
-        });
+    for o in &config.allowed_origins {
+        let o_clean = o.trim().trim_end_matches('/').to_lowercase();
+        if o_clean == "*"
+            || origin_clean == o_clean
+            || (!origin_domain.is_empty() && extract_domain(&o_clean) == origin_domain)
+        {
+            return true;
+        }
     }
 
     // 2. Allow localhost and loopback interfaces
@@ -31,17 +51,26 @@ fn is_origin_allowed(origin: &str, headers: &HeaderMap, config: &crate::config::
         || origin_clean.starts_with("https://localhost")
         || origin_clean.starts_with("http://127.0.0.1")
         || origin_clean.starts_with("https://127.0.0.1")
+        || origin_domain == "localhost"
+        || origin_domain == "127.0.0.1"
     {
         return true;
     }
 
-    // 3. Allow matching Host header
-    if let Some(host) = headers.get(header::HOST).and_then(|h| h.to_str().ok()) {
-        let host_clean = host.trim().to_lowercase();
-        if origin_clean.ends_with(&host_clean)
-            || origin_clean.replace("https://", "").replace("http://", "") == host_clean
-        {
-            return true;
+    // 3. Allow matching Host, X-Forwarded-Host, or X-Original-Host headers
+    let candidate_headers = [
+        headers.get(header::HOST),
+        headers.get("x-forwarded-host"),
+        headers.get("x-original-host"),
+    ];
+
+    for candidate in candidate_headers.into_iter().flatten() {
+        if let Ok(val) = candidate.to_str() {
+            let val_clean = val.trim().to_lowercase();
+            let val_domain = extract_domain(&val_clean);
+            if !origin_domain.is_empty() && origin_domain == val_domain {
+                return true;
+            }
         }
     }
 
@@ -213,5 +242,17 @@ mod tests {
 
         // Non-whitelisted origins rejected
         assert!(!is_origin_allowed("https://other-domain.com", &headers, &config));
+    }
+
+    #[test]
+    fn test_is_origin_allowed_reverse_proxy() {
+        let config = AppConfig::from_env();
+        let mut headers = HeaderMap::new();
+        headers.insert("x-forwarded-host", "syndae.veds.me".parse().unwrap());
+
+        assert!(is_origin_allowed("https://syndae.veds.me", &headers, &config));
+        assert!(is_origin_allowed("https://syndae.veds.me/", &headers, &config));
+        assert!(is_origin_allowed("https://syndae.veds.me:443", &headers, &config));
+        assert!(!is_origin_allowed("https://evil-attacker.com", &headers, &config));
     }
 }

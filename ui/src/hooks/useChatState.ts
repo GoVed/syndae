@@ -54,7 +54,7 @@ export const useChatState = ({
     }
   }, [activeSession?.id, loadMessages]);
 
-  // Streaming watchdog: polls messages if turn finishes via background without socket done
+  // Streaming watchdog: polls messages and pending tickets if turn finishes or pauses without socket done
   useEffect(() => {
     if (!isStreaming || !activeSession?.id) return;
 
@@ -72,13 +72,20 @@ export const useChatState = ({
             setLiveToolExecutions([]);
           }
         }
+
+        // Check for any pending approval tickets in case socket disconnected
+        const tRes = await fetch('/api/hitl/tickets');
+        const tData = await tRes.json();
+        if (tData.success && Array.isArray(tData.pending)) {
+          setPendingTickets(tData.pending);
+        }
       } catch (err) {
         console.error('Watchdog polling error', err);
       }
-    }, 1000);
+    }, 1500);
 
     return () => clearInterval(interval);
-  }, [isStreaming, activeSession?.id]);
+  }, [isStreaming, activeSession?.id, setPendingTickets]);
 
   const handleCreateSession = useCallback(async (mode: 'chat' | 'mission') => {
     try {
@@ -106,6 +113,25 @@ export const useChatState = ({
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleRenameSession = async (id: string, newTitle: string) => {
+    const trimmed = newTitle.trim();
+    if (!trimmed) return;
+    try {
+      const res = await fetch(`/api/chat/sessions/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: trimmed }),
+      });
+      const data = await res.json();
+      if (data.success && data.session) {
+        setSessions(prev => prev.map(s => (s.id === id ? { ...s, title: data.session.title } : s)));
+        setActiveSession(prev => (prev?.id === id ? { ...prev, title: data.session.title } : prev));
+      }
+    } catch (e) {
+      console.error('Failed to rename session', e);
     }
   };
 
@@ -147,6 +173,17 @@ export const useChatState = ({
 
   const handleIncomingChatEvent = useCallback((evt: any, eventSessionId?: string) => {
     const isForActiveSession = !eventSessionId || eventSessionId === activeSessionRef.current?.id;
+
+    if (evt.type === 'session_title_updated' && evt.title) {
+      const updatedId = eventSessionId || activeSessionRef.current?.id;
+      if (updatedId) {
+        setSessions(prev =>
+          prev.map(s => (s.id === updatedId ? { ...s, title: evt.title } : s))
+        );
+        setActiveSession(prev => (prev?.id === updatedId ? { ...prev, title: evt.title } : prev));
+      }
+      return;
+    }
 
     if (evt.type === 'onboarding_completed') {
       setAuthStatus(prev => (prev ? { ...prev, onboarded: true } : null));
@@ -305,6 +342,7 @@ export const useChatState = ({
     loadMessages,
     handleCreateSession,
     handleDeleteSession,
+    handleRenameSession,
     handleSendPrompt,
     handleIncomingChatEvent,
   };

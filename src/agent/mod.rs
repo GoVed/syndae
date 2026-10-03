@@ -241,7 +241,9 @@ impl AgentRunner {
         // Separate reasoning and clean final response
         let (extracted_response, thought_opt) =
             extract_thought_and_response(&raw_response, &raw_thought);
-        let final_response = prompt::sanitize_option_tags(&extracted_response);
+        let (response_without_title, suggested_title_opt) =
+            reasoning::extract_suggested_title(&extracted_response);
+        let final_response = prompt::sanitize_option_tags(&response_without_title);
 
         let saved_msg = self
             .db
@@ -253,6 +255,52 @@ impl AgentRunner {
                 None,
             )
             .await?;
+
+        // Update session title if model suggested one or fallback if current title is generic
+        if let Ok(Some(current_session)) = self.db.get_session(session_id).await {
+            let is_generic = {
+                let t = current_session.title.trim();
+                t.is_empty()
+                    || t == "New Mission Workspace"
+                    || t == "New Chat"
+                    || t == "New Task"
+                    || t == "Active Session"
+                    || t == "Untitled"
+                    || t == "Untitled Session"
+                    || t.starts_with("[INCOMING TOOL EVENT")
+                    || t.starts_with("New ")
+            };
+
+            let candidate_title = if let Some(suggested) = suggested_title_opt {
+                Some(suggested)
+            } else if is_generic {
+                let fallback = reasoning::generate_fallback_title(user_prompt);
+                if !fallback.is_empty() && fallback != current_session.title {
+                    Some(fallback)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            if let Some(new_title) = candidate_title {
+                if new_title != current_session.title {
+                    if self
+                        .db
+                        .update_session_title_and_mode(session_id, &new_title, &current_session.mode)
+                        .await
+                        .is_ok()
+                    {
+                        let _ = event_tx
+                            .send(AgentEvent::SessionTitleUpdated {
+                                title: new_title,
+                            })
+                            .await;
+                    }
+                }
+            }
+        }
 
         let _ = event_tx
             .send(AgentEvent::Done {

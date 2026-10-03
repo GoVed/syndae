@@ -45,6 +45,9 @@ pub enum AgentEvent {
     Done {
         message_id: String,
     },
+    SessionTitleUpdated {
+        title: String,
+    },
     OnboardingCompleted,
     Error {
         message: String,

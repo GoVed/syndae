@@ -13,7 +13,13 @@ use crate::state::AppState;
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/sessions", get(list_sessions).post(create_session))
-        .route("/sessions/{id}", get(get_session).delete(delete_session))
+        .route(
+            "/sessions/{id}",
+            get(get_session)
+                .patch(update_session)
+                .put(update_session)
+                .delete(delete_session),
+        )
         .route("/sessions/{id}/messages", get(list_messages))
         .route("/send", post(send_message))
         .route("/queue", get(get_queue_status).post(update_queue_config))
@@ -30,6 +36,12 @@ struct UpdateQueueConfigRequest {
 struct CreateSessionRequest {
     title: Option<String>,
     mode: Option<String>, // "chat" or "mission"
+}
+
+#[derive(Deserialize)]
+struct UpdateSessionRequest {
+    title: Option<String>,
+    mode: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -57,10 +69,14 @@ async fn create_session(
     State(state): State<AppState>,
     Json(payload): Json<CreateSessionRequest>,
 ) -> impl IntoResponse {
-    let title = payload
-        .title
-        .unwrap_or_else(|| "New Mission Workspace".to_string());
     let mode = payload.mode.unwrap_or_else(|| "chat".to_string());
+    let title = payload.title.unwrap_or_else(|| {
+        if mode == "mission" {
+            "New Task".to_string()
+        } else {
+            "New Chat".to_string()
+        }
+    });
 
     match state.db.create_session(&title, &mode).await {
         Ok(session) => (
@@ -83,6 +99,56 @@ async fn get_session(
             StatusCode::OK,
             Json(json!({ "success": true, "session": session })),
         ),
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "success": false, "error": "Session not found" })),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "success": false, "error": e.to_string() })),
+        ),
+    }
+}
+
+async fn update_session(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<UpdateSessionRequest>,
+) -> impl IntoResponse {
+    match state.db.get_session(&id).await {
+        Ok(Some(session)) => {
+            let title = payload.title.as_deref().unwrap_or(&session.title).trim();
+            let mode = payload.mode.as_deref().unwrap_or(&session.mode).trim();
+            if title.is_empty() {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({ "success": false, "error": "Title cannot be empty" })),
+                );
+            }
+            match state.db.update_session_title_and_mode(&id, title, mode).await {
+                Ok(_) => {
+                    let updated = state.db.get_session(&id).await.ok().flatten();
+                    let ws_broadcast = state.ws_broadcast.clone();
+                    let msg = json!({
+                        "topic": "chat_event",
+                        "session_id": id,
+                        "event": {
+                            "type": "session_title_updated",
+                            "title": title
+                        }
+                    });
+                    let _ = ws_broadcast.send(msg.to_string());
+                    (
+                        StatusCode::OK,
+                        Json(json!({ "success": true, "session": updated })),
+                    )
+                }
+                Err(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({ "success": false, "error": e.to_string() })),
+                ),
+            }
+        }
         Ok(None) => (
             StatusCode::NOT_FOUND,
             Json(json!({ "success": false, "error": "Session not found" })),
@@ -135,11 +201,7 @@ async fn send_message(
     let actual_session = match state.db.get_session(&session_id).await {
         Ok(Some(s)) => s,
         _ => {
-            let title = if prompt.chars().count() > 30 {
-                format!("{}...", prompt.chars().take(30).collect::<String>())
-            } else {
-                prompt.clone()
-            };
+            let title = crate::agent::reasoning::generate_fallback_title(&prompt);
             state
                 .db
                 .create_session(&title, &mode)

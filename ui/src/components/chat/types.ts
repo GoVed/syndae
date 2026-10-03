@@ -50,4 +50,5 @@ export interface ChatViewProps {
   messages?: ChatMessage[];
   onReloadMessages?: () => void;
   onNavigateToSettings?: () => void;
+  onRenameSession?: (id: string, newTitle: string) => void;
 }

@@ -1,34 +1,47 @@
-import React from 'react';
-import { X, Plus, Zap, Bot, Trash2, FolderOpen, Settings } from 'lucide-react';
-import { ChatSession, MemoryFileNode } from '../../types';
+import React, { useState } from 'react';
+import { X, Plus, Zap, Bot, Trash2, Settings, Pencil } from 'lucide-react';
+import { ChatSession } from '../../types';
 
 export interface SessionSidebarProps {
   sessions: ChatSession[];
   activeSession: ChatSession | null;
   mobileSidebarOpen: boolean;
-  selectedSkill: string;
-  memoryFiles: MemoryFileNode[];
   onSelectSession: (s: ChatSession) => void;
   onCreateSession: (mode: 'chat' | 'mission') => void;
   onDeleteSession: (id: string) => void;
   onCloseMobileSidebar: () => void;
-  onChangeSkill: (skillPath: string) => void;
   onNavigateToSettings?: () => void;
+  onRenameSession?: (id: string, newTitle: string) => void;
 }
 
 export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   sessions,
   activeSession,
   mobileSidebarOpen,
-  selectedSkill,
-  memoryFiles,
   onSelectSession,
   onCreateSession,
   onDeleteSession,
   onCloseMobileSidebar,
-  onChangeSkill,
   onNavigateToSettings,
+  onRenameSession,
 }) => {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+
+  const handleStartRename = (s: ChatSession, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(s.id);
+    setEditTitle(s.title);
+  };
+
+  const handleSaveRename = (id: string) => {
+    const trimmed = editTitle.trim();
+    if (trimmed && onRenameSession) {
+      onRenameSession(id, trimmed);
+    }
+    setEditingId(null);
+  };
+
   return (
     <>
       {/* Mobile Drawer Backdrop */}
@@ -41,34 +54,34 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
 
       {/* Session Drawer / Sidebar */}
       <aside
-        className={`flex-shrink-0 fixed top-0 bottom-auto left-0 z-50 w-72 bg-syndae-900 border-r border-syndae-800 shadow-2xl flex flex-col overflow-hidden transition-transform duration-300 md:relative md:w-64 md:h-full md:shadow-none max-md:h-[var(--app-height,100dvh)] max-md:max-h-[var(--app-height,100dvh)] ${
+        className={`flex-shrink-0 fixed top-0 bottom-auto left-0 z-50 w-72 bg-syndae-900/95 backdrop-blur-2xl border-r border-syndae-800/80 shadow-2xl flex flex-col overflow-hidden transition-transform duration-300 md:relative md:w-64 md:h-full md:shadow-none max-md:h-[var(--app-height,100dvh)] max-md:max-h-[var(--app-height,100dvh)] ${
           mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
-        <div className="p-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:pt-3 border-b border-syndae-800 flex items-center justify-between flex-shrink-0">
+        <div className="p-3.5 pt-[max(0.85rem,env(safe-area-inset-top))] md:pt-3.5 border-b border-syndae-800/80 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center space-x-2">
             <button
               type="button"
               onClick={onCloseMobileSidebar}
-              className="md:hidden p-1 rounded hover:bg-syndae-800 text-slate-400 hover:text-white"
+              className="md:hidden p-1.5 rounded-lg hover:bg-syndae-800 text-slate-400 hover:text-white transition-colors"
               title="Close drawer"
             >
               <X className="w-4 h-4" />
             </button>
-            <span className="text-xs font-mono font-bold text-slate-300 tracking-wider">CHATS</span>
+            <span className="text-xs font-semibold text-slate-300 tracking-wider">CHATS</span>
           </div>
-          <div className="flex space-x-1">
+          <div className="flex space-x-1.5">
             <button
               type="button"
               onClick={() => {
                 onCreateSession('chat');
                 onCloseMobileSidebar();
               }}
-              className="p-1.5 rounded bg-syndae-800 hover:bg-syndae-750 text-emerald-400 text-xs flex items-center space-x-1 border border-syndae-700/60"
+              className="p-1.5 px-2.5 rounded-lg bg-syndae-800 hover:bg-emerald-950/60 text-emerald-300 hover:text-emerald-200 text-xs flex items-center space-x-1.5 border border-syndae-700/80 hover:border-emerald-500/40 transition-all duration-200 active:scale-95 shadow-sm"
               title="Start new chat"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span className="font-mono text-[10px]">Chat</span>
+              <Plus className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="font-medium text-[11px]">Chat</span>
             </button>
             <button
               type="button"
@@ -76,76 +89,113 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
                 onCreateSession('mission');
                 onCloseMobileSidebar();
               }}
-              className="p-1.5 rounded bg-syndae-800 hover:bg-syndae-750 text-cyan-400 text-xs flex items-center space-x-1 border border-syndae-700/60"
+              className="p-1.5 px-2.5 rounded-lg bg-syndae-800 hover:bg-amber-950/60 text-amber-300 hover:text-amber-200 text-xs flex items-center space-x-1.5 border border-syndae-700/80 hover:border-amber-500/40 transition-all duration-200 active:scale-95 shadow-sm"
               title="Start new deep task"
             >
-              <Zap className="w-3.5 h-3.5" />
-              <span className="font-mono text-[10px]">Task</span>
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span className="font-medium text-[11px]">Task</span>
             </button>
           </div>
         </div>
 
         {/* Sessions List */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1">
+        <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-1.5">
+          {sessions.length === 0 && (
+            <div className="p-4 text-center text-xs text-slate-500 space-y-1 mt-4">
+              <Bot className="w-6 h-6 text-slate-600 mx-auto mb-2 opacity-60" />
+              <p className="font-medium text-slate-400">No chats yet</p>
+              <p className="text-[11px]">Start a new chat or task above to begin.</p>
+            </div>
+          )}
           {sessions.map(s => {
             const isSelected = s.id === activeSession?.id;
+            const isEditing = editingId === s.id;
+            const isMission = s.mode === 'mission';
             return (
               <div
                 key={s.id}
                 onClick={() => {
-                  onSelectSession(s);
-                  onCloseMobileSidebar();
+                  if (!isEditing) {
+                    onSelectSession(s);
+                    onCloseMobileSidebar();
+                  }
                 }}
-                className={`group flex items-center justify-between p-2 rounded cursor-pointer text-xs transition-colors border ${
+                className={`group relative flex items-center justify-between p-2.5 rounded-xl cursor-pointer text-xs transition-all duration-200 border ${
                   isSelected
-                    ? 'bg-syndae-800 text-slate-100 border-emerald-500/40'
-                    : 'text-slate-400 hover:bg-syndae-850 hover:text-slate-200 border-transparent'
+                    ? isMission
+                      ? 'bg-amber-950/25 text-slate-100 border-amber-500/30 shadow-sm font-medium'
+                      : 'bg-emerald-950/25 text-slate-100 border-emerald-500/30 shadow-sm font-medium'
+                    : 'text-slate-400 hover:bg-syndae-850 hover:text-slate-200 border-transparent hover:border-syndae-800/80'
                 }`}
               >
-                <div className="flex items-center space-x-2 truncate">
-                  {s.mode === 'mission' ? (
-                    <Zap className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+                {isSelected && (
+                  <span
+                    className={`absolute left-0 top-2 bottom-2 w-1 rounded-r-full ${
+                      isMission ? 'bg-amber-400' : 'bg-emerald-400'
+                    }`}
+                  />
+                )}
+                <div className="flex items-center space-x-2.5 truncate pl-1 flex-1 min-w-0 mr-2">
+                  {isMission ? (
+                    <Zap className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
                   ) : (
                     <Bot className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
                   )}
-                  <span className="truncate font-mono">{s.title || 'Untitled Session'}</span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editTitle}
+                      onChange={e => setEditTitle(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleSaveRename(s.id);
+                        if (e.key === 'Escape') setEditingId(null);
+                      }}
+                      onBlur={() => handleSaveRename(s.id)}
+                      onClick={e => e.stopPropagation()}
+                      autoFocus
+                      className="w-full px-1.5 py-0.5 rounded bg-syndae-800 text-white text-xs border border-cyan-500 focus:outline-none"
+                    />
+                  ) : (
+                    <span
+                      className="truncate font-medium text-slate-200 group-hover:text-white"
+                      onDoubleClick={e => {
+                        if (onRenameSession) handleStartRename(s, e);
+                      }}
+                    >
+                      {s.title || 'Untitled Session'}
+                    </span>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={e => {
-                    e.stopPropagation();
-                    onDeleteSession(s.id);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-400 text-slate-500 transition-opacity"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
+                {!isEditing && (
+                  <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-all duration-150 flex-shrink-0">
+                    {onRenameSession && (
+                      <button
+                        type="button"
+                        onClick={e => handleStartRename(s, e)}
+                        className="p-1 rounded-lg hover:bg-cyan-950/60 text-slate-400 hover:text-cyan-300 transition-colors"
+                        title="Rename chat"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        onDeleteSession(s.id);
+                      }}
+                      className="p-1 rounded-lg hover:bg-rose-950/60 hover:text-rose-400 text-slate-400 transition-colors"
+                      title="Delete chat"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
 
-        {/* Active Skills Selector Info */}
-        <div className="p-3 border-t border-syndae-800 bg-syndae-950 text-[11px] font-mono flex-shrink-0">
-          <div className="text-slate-400 mb-1 flex items-center space-x-1">
-            <FolderOpen className="w-3 h-3 text-emerald-400" />
-            <span>AVAILABLE SKILLSETS</span>
-          </div>
-          <select
-            value={selectedSkill}
-            onChange={e => onChangeSkill(e.target.value)}
-            className="w-full bg-syndae-900 border border-syndae-700 text-slate-200 rounded p-1.5 text-xs focus:outline-none focus:border-emerald-500"
-          >
-            <option value="">Attach assistant skill (optional)...</option>
-            {memoryFiles
-              .filter(f => f.category === 'skills')
-              .map(f => (
-                <option key={f.path} value={f.path}>
-                  {f.title || f.filename}
-                </option>
-              ))}
-          </select>
-        </div>
 
         {/* Mobile Settings Shortcut at Drawer Bottom */}
         {onNavigateToSettings && (
@@ -158,7 +208,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
               }}
               className="w-full flex items-center justify-center space-x-2 py-2 px-3 rounded-lg bg-syndae-800 hover:bg-syndae-750 text-slate-200 text-xs font-medium border border-syndae-700/60 transition-colors"
             >
-              <Settings className="w-3.5 h-3.5 text-emerald-400" />
+              <Settings className="w-3.5 h-3.5 text-zinc-400" />
               <span>Mission Control & Settings</span>
             </button>
           </div>
