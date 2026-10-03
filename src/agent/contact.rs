@@ -111,14 +111,7 @@ fn detect_dialect_and_context(contact: &mut ResolvedContact, memory_context: &st
 }
 
 pub fn extract_draft_text(user_prompt: &str) -> String {
-    let trimmed = user_prompt.trim();
-
-    if let Some(first_quote) = trimmed.find('"')
-        && let Some(last_quote) = trimmed.rfind('"')
-        && last_quote > first_quote
-    {
-        return trimmed[first_quote + 1..last_quote].trim().to_string();
-    }
+    let mut trimmed = user_prompt.trim();
 
     let prefixes = [
         "Translate and send:", "translate and send:", "Translate & send:",
@@ -127,11 +120,26 @@ pub fn extract_draft_text(user_prompt: &str) -> String {
 
     for p in prefixes {
         if let Some(stripped) = trimmed.strip_prefix(p) {
-            return stripped.trim().trim_matches('"').to_string();
+            trimmed = stripped.trim();
+            break;
         }
     }
 
-    trimmed.to_string()
+    let mut extracted = if let Some(first_quote) = trimmed.find('"')
+        && let Some(last_quote) = trimmed.rfind('"')
+        && last_quote > first_quote
+    {
+        trimmed[first_quote + 1..last_quote].trim().to_string()
+    } else {
+        trimmed.trim_matches('"').to_string()
+    };
+
+    // Strip leading 'e.g. ' or 'e.g.: ' if the option had example text
+    if let Some(stripped) = extracted.strip_prefix("e.g.") {
+        extracted = stripped.trim().trim_start_matches(':').trim().trim_matches('"').to_string();
+    }
+
+    extracted
 }
 
 pub fn build_translate_and_send_directive(user_prompt: &str, contact: &ResolvedContact) -> String {
@@ -142,32 +150,32 @@ pub fn build_translate_and_send_directive(user_prompt: &str, contact: &ResolvedC
         contact.target_to.clone()
     };
 
+    let user_lower = user_prompt.to_lowercase();
+    let target_lang = if user_lower.contains("in hindi") || user_lower.contains("hinglish") {
+        "hinglish"
+    } else if user_lower.contains("in spanish") {
+        "spanish"
+    } else if user_lower.contains("in gujarati") {
+        "gujarati"
+    } else if !contact.detected_dialect.is_empty() && contact.detected_dialect != "english" {
+        &contact.detected_dialect
+    } else {
+        "gujlish"
+    };
+
     format!(
         "\n\n[MANDATORY SYSTEM DIRECTIVE: TRANSLATE AND SEND]\n\
         The operator confirmed sending this reply to {} ({}).\n\
-        English draft to send: \"{}\"\n\
-        Target language: \"{}\"\n\
+        Message draft: \"{}\"\n\
+        Target dialect/language: \"{}\"\n\
         Target recipient (to): \"{}\"\n\n\
-        STEP 1: You MUST execute the `translate` tool immediately on this turn:\n\
-        Call: translate(\n  \
-          text: \"{}\",\n  \
-          target_lang: \"{}\",\n  \
-          tone: \"casual\",\n  \
-          context: {{\n    \
-            \"relationship\": \"{}\",\n    \
-            \"formality\": \"casual\",\n    \
-            \"recipient_gender\": \"{}\",\n    \
-            \"speaker_gender\": \"male\",\n    \
-            \"age_group\": \"peer\"\n  \
-          }}\n\
-        )\n\n\
-        CRITICAL RULES:\n\
-        - Do NOT output conversational text before or instead of calling `translate`.\n\
-        - Do NOT output the English draft \"{}\" into the chat.\n\
-        - After translation returns, you will invoke `send_message(to: \"{}\", message: <translated_text>).\n",
-        contact.sender_name, channel_display, draft, contact.detected_dialect, contact.target_to,
-        draft, contact.detected_dialect, contact.relationship, contact.recipient_gender,
-        draft, contact.target_to
+        INSTRUCTIONS FOR THIS TURN:\n\
+        1. You MUST execute the `translate` tool with text: \"{}\" and target_lang: \"{}\".\n\
+        2. Do NOT write pseudocode, code blocks, or function syntax (e.g. `translate(...)`) in your chat response text.\n\
+        3. Do NOT output the English draft or any foreign words in chat prose.\n\
+        4. Trigger the tool call directly via the structured tool call interface.\n",
+        contact.sender_name, channel_display, draft, target_lang, contact.target_to,
+        draft, target_lang
     )
 }
 
@@ -184,11 +192,10 @@ pub fn build_send_confirmation_directive(user_prompt: &str, contact: &ResolvedCo
         The operator confirmed sending this message to {} ({}).\n\
         Message to send: \"{}\"\n\
         Target recipient (to): \"{}\"\n\n\
-        YOU MUST IMMEDIATELY INVOKE THE `send_message` TOOL:\n\
-        Call: send_message(to: \"{}\", message: \"{}\")\n\n\
-        CRITICAL RULES:\n\
-        - Do NOT output conversational text before or instead of calling `send_message`.\n\
-        - Invoke the tool directly.\n",
+        INSTRUCTIONS FOR THIS TURN:\n\
+        1. Immediately invoke the `send_message` tool with to: \"{}\" and message: \"{}\".\n\
+        2. Do NOT write pseudocode or function syntax (e.g. `send_message(...)`) in your chat text.\n\
+        3. Trigger the tool call directly via the structured tool call interface.\n",
         contact.sender_name, channel_display, draft, contact.target_to,
         contact.target_to, draft
     )
@@ -227,6 +234,10 @@ mod tests {
         assert_eq!(
             extract_draft_text("Send: \"Got it! On my way!\""),
             "Got it! On my way!"
+        );
+        assert_eq!(
+            extract_draft_text("Translate and send: \"e.g. \"Hey brother! How about the new project at work?\"\""),
+            "Hey brother! How about the new project at work?"
         );
     }
 

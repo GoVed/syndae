@@ -331,3 +331,31 @@ fn test_is_main_model_vision_capable_detection() {
     assert!(super::tools::is_main_model_vision_capable(&cfg));
 }
 
+#[test]
+fn test_extract_thought_and_response_strips_pseudo_function_calls() {
+    let raw = "translate(\n  text: \"Good here, just checking in.\",\n  target_lang: \"gujlish\"\n)\n\nI will send your reply now!\n\n<options>\n<option>Okay</option>\n</options>";
+    let (resp, thought) = super::reasoning::extract_thought_and_response(raw, "");
+    assert!(!resp.contains("translate("));
+    assert!(resp.contains("I will send your reply now!"));
+    assert!(thought.is_some());
+    assert!(thought.unwrap().contains("translate("));
+}
+
+#[test]
+fn test_build_translate_and_send_directive_format() {
+    let mut contact = super::contact::ResolvedContact::default();
+    contact.sender_name = "Test Peer".to_string();
+    contact.target_to = "120363000000000001@g.us".to_string();
+    contact.detected_dialect = "gujlish".to_string();
+
+    let directive = super::contact::build_translate_and_send_directive(
+        "Translate and send: \"Good here, just checking in.\"",
+        &contact,
+    );
+
+    assert!(!directive.contains("Call: translate("));
+    assert!(directive.contains("MANDATORY SYSTEM DIRECTIVE: TRANSLATE AND SEND"));
+    assert!(directive.contains("Target dialect/language: \"gujlish\""));
+    assert!(directive.contains("Do NOT write pseudocode"));
+}
+

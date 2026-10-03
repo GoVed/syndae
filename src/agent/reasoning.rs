@@ -32,6 +32,16 @@ pub fn split_leading_reasoning(content: &str) -> (Option<String>, String) {
         "However, I ",
         "I don't have access to real-time",
         "The memory only contains",
+        "translate(",
+        "send_message(",
+        "search_contacts(",
+        "send_reaction(",
+        "Call: translate",
+        "Call: send_message",
+        "Call:",
+        "call:",
+        "STEP 1:",
+        "Step 1:",
     ];
 
     let trimmed = content.trim();
@@ -50,14 +60,27 @@ pub fn split_leading_reasoning(content: &str) -> (Option<String>, String) {
             || p.starts_with("Okay.")
             || p.starts_with("Alright,")
             || p.starts_with("Alright.")
+            || lower.starts_with("translate(")
+            || lower.starts_with("send_message(")
+            || lower.starts_with("search_contacts(")
+            || lower.starts_with("send_reaction(")
+            || lower.starts_with("call:")
+            || lower.starts_with("call :")
+            || lower.starts_with("step 1:")
             || lower.contains("is asking ")
             || lower.contains("has chosen ")
             || lower.contains("has asked ")
             || lower.contains("wants me to ")
             || lower.contains("i should ")
             || lower.contains("i need to ")
-            || lower.contains("i'll ")
-            || lower.contains("i will ")
+            || lower.contains("i'll formulate")
+            || lower.contains("i will formulate")
+            || lower.contains("i'll generate")
+            || lower.contains("i will generate")
+            || lower.contains("i'll respond")
+            || lower.contains("i will respond")
+            || lower.contains("i'll output")
+            || lower.contains("i will output")
             || lower.contains("system instructions")
             || lower.contains("onboarding mode")
             || lower.contains("<options> block")
@@ -185,6 +208,26 @@ pub fn extract_thought_and_response(
             }
             final_response = clean_resp;
         }
+
+    // 4. Strip any pseudo function call syntax blocks (e.g. translate(...), send_message(...))
+    for func in ["translate", "send_message", "search_contacts", "send_reaction"] {
+        let call_sig = format!("{}(", func);
+        while let Some(start) = final_response.find(&call_sig) {
+            if let Some(close_paren) = final_response[start..].find(')') {
+                let end_idx = start + close_paren + 1;
+                let mock_call = final_response[start..end_idx].trim();
+                if final_thought.is_empty() {
+                    final_thought = mock_call.to_string();
+                } else if !final_thought.contains(mock_call) {
+                    final_thought.push_str("\n\n");
+                    final_thought.push_str(mock_call);
+                }
+                final_response = format!("{}{}", &final_response[..start], &final_response[end_idx..]).trim().to_string();
+            } else {
+                break;
+            }
+        }
+    }
 
     // Strip any stray 'tags.' or 'tags:' artifacts
     for s in [&mut final_thought, &mut final_response] {

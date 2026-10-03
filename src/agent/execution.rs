@@ -49,6 +49,7 @@ impl AgentRunner {
 
         let mut had_tool_rejection = false;
         let mut translated_in_this_turn = false;
+        let mut current_translated_text: Option<String> = None;
 
         let is_translate_and_send = crate::agent::contact::is_translate_and_send_intent(user_prompt);
         let is_send_confirmation = crate::agent::contact::is_send_confirmation_intent(user_prompt);
@@ -72,7 +73,45 @@ impl AgentRunner {
             let max_gen_tokens = Some((remaining_kv.min(max_tokens_limit)) as u32);
             let turn_reasoning_effort = if is_action_turn { "low" } else { reasoning_effort.as_str() };
 
-            let tool_choice = if available_tools.is_empty() {
+            // On iteration 2 of translate_and_send, provide explicit instruction with authentic translated text
+            if iteration == 2 && is_translate_and_send && translated_in_this_turn {
+                if let Some(ref trans_text) = current_translated_text {
+                    let hist_strings: Vec<String> = chat_messages.iter().map(|m| m.content.clone()).collect();
+                    let contact = crate::agent::contact::resolve_contact_from_history(&hist_strings, "");
+                    chat_messages.push(ChatMessageParam {
+                        role: "user".to_string(),
+                        content: format!(
+                            "[MANDATORY SYSTEM DIRECTIVE: SEND TRANSLATED MESSAGE]\n\
+                            Translation completed successfully!\n\
+                            Translated text: \"{}\"\n\
+                            Recipient: \"{}\"\n\n\
+                            You MUST IMMEDIATELY invoke the `send_message` tool:\n\
+                            - to: \"{}\"\n\
+                            - message: \"{}\"\n\n\
+                            Do NOT modify the translated text. Do NOT use English. Do NOT output conversational text.",
+                            trans_text, contact.target_to,
+                            contact.target_to, trans_text
+                        ),
+                        name: None, tool_call_id: None, tool_calls: None, images: None,
+                    });
+                }
+            }
+
+            // Filter available tools based on turn phase to strictly guide open-source models
+            let turn_available_tools: Vec<ToolParam> = if iteration == 1 && is_translate_and_send {
+                let filtered: Vec<ToolParam> = available_tools.iter().filter(|t| t.name == "translate").cloned().collect();
+                if filtered.is_empty() { available_tools.clone() } else { filtered }
+            } else if iteration == 2 && is_translate_and_send && translated_in_this_turn {
+                let filtered: Vec<ToolParam> = available_tools.iter().filter(|t| t.name == "send_message").cloned().collect();
+                if filtered.is_empty() { available_tools.clone() } else { filtered }
+            } else if iteration == 1 && is_send_confirmation {
+                let filtered: Vec<ToolParam> = available_tools.iter().filter(|t| t.name == "send_message").cloned().collect();
+                if filtered.is_empty() { available_tools.clone() } else { filtered }
+            } else {
+                available_tools.clone()
+            };
+
+            let tool_choice = if turn_available_tools.is_empty() {
                 None
             } else if iteration == 1 && is_action_turn {
                 Some("required")
@@ -84,7 +123,7 @@ impl AgentRunner {
 
             let mut rx = self.router.dispatch_stream(
                 &model_cfg.provider, model_cfg.base_url.as_deref(), model_cfg.api_key.as_deref(),
-                &model_cfg.model_id, chat_messages.clone(), available_tools.clone(), max_gen_tokens,
+                &model_cfg.model_id, chat_messages.clone(), turn_available_tools.clone(), max_gen_tokens,
                 Some(turn_reasoning_effort), tool_choice,
             ).await;
 
@@ -112,7 +151,9 @@ impl AgentRunner {
                         accumulated_full_response.push_str(&tok);
                         token_count_turn += 1;
                         self.telemetry.record_tokens(1);
-                        let _ = event_tx.send(AgentEvent::Token { content: tok }).await;
+                        if !is_action_turn {
+                            let _ = event_tx.send(AgentEvent::Token { content: tok }).await;
+                        }
                         if crate::agent::reasoning::arrest_repetition(&mut current_turn_text, &mut accumulated_full_response) {
                             break;
                         }
@@ -177,23 +218,98 @@ impl AgentRunner {
                     let draft = crate::agent::contact::extract_draft_text(user_prompt);
                     let hist_strings: Vec<String> = chat_messages.iter().map(|m| m.content.clone()).collect();
                     let contact = crate::agent::contact::resolve_contact_from_history(&hist_strings, "");
+                    let user_lower = user_prompt.to_lowercase();
+                    let target_lang = if user_lower.contains("in hindi") || user_lower.contains("hinglish") {
+                        "hinglish"
+                    } else if user_lower.contains("in spanish") {
+                        "spanish"
+                    } else if user_lower.contains("in gujarati") {
+                        "gujarati"
+                    } else if !contact.detected_dialect.is_empty() && contact.detected_dialect != "english" {
+                        contact.detected_dialect.as_str()
+                    } else {
+                        "gujlish"
+                    };
                     let res = self.execute_tool("translate", json!({
                         "text": draft,
-                        "target_lang": contact.detected_dialect,
+                        "target_lang": target_lang,
                         "tone": "casual"
                     })).await;
 
                     if res.success {
                         translated_in_this_turn = true;
+                        if let Ok(v) = serde_json::from_str::<Value>(&res.content) {
+                            if let Some(t) = v.get("translated").and_then(|s| s.as_str()) {
+                                current_translated_text = Some(t.to_string());
+                            }
+                        }
                         accumulated_full_response.clear();
                         accumulated_full_thought.clear();
                         let cid = format!("call_{}", Uuid::new_v4().simple());
-                        let args = json!({"text": draft, "target_lang": contact.detected_dialect}).to_string();
+                        let args = json!({"text": draft, "target_lang": target_lang}).to_string();
                         let tc = ToolCallParam { id: cid.clone(), kind: "function".to_string(), function: ToolCallFunctionParam { name: "translate".to_string(), arguments: args } };
                         chat_messages.push(ChatMessageParam { role: "assistant".to_string(), content: String::new(), name: None, tool_call_id: None, tool_calls: Some(vec![tc]), images: None });
                         chat_messages.push(ChatMessageParam { role: "tool".to_string(), content: res.content, name: Some("translate".to_string()), tool_call_id: Some(cid), tool_calls: None, images: None });
                         continue;
                     }
+                } else if iteration == 2 && is_translate_and_send && translated_in_this_turn {
+                    if let Some(ref trans_text) = current_translated_text {
+                        let hist_strings: Vec<String> = chat_messages.iter().map(|m| m.content.clone()).collect();
+                        let contact = crate::agent::contact::resolve_contact_from_history(&hist_strings, "");
+                        let call_id = format!("call_{}", Uuid::new_v4().simple());
+                        let args_json = json!({
+                            "to": contact.target_to,
+                            "message": trans_text
+                        });
+                        let args_str = args_json.to_string();
+                        let _ = event_tx.send(AgentEvent::ToolCallStarted {
+                            id: call_id.clone(),
+                            tool_name: "send_message".to_string(),
+                            arguments: args_json.clone(),
+                        }).await;
+
+                        let (final_args, tool_permitted, rejection_reason) = crate::agent::hitl_handler::handle_hitl_approval(
+                            &self.db, &self.hitl, session_id, "send_message", &args_str, &args_json, "HIGH", event_tx
+                        ).await;
+
+                        let tool_start = Instant::now();
+                        let output = if tool_permitted {
+                            let res = self.execute_tool("send_message", final_args.clone()).await;
+                            let duration = tool_start.elapsed().as_millis() as u64;
+                            let payload_str = serde_json::to_string(&final_args).unwrap_or_default();
+                            let _ = self.db.record_audit_event(
+                                Some(session_id), "tool_executed", Some("send_message"), Some(&payload_str),
+                                Some(if res.success { "success" } else { "error" }), Some(duration as i64),
+                            ).await;
+                            let _ = event_tx.send(AgentEvent::ToolCompleted {
+                                id: call_id.clone(), tool_name: "send_message".to_string(), success: res.success, output: res.content.clone(), duration_ms: duration,
+                            }).await;
+                            res.content
+                        } else {
+                            had_tool_rejection = true;
+                            let duration = tool_start.elapsed().as_millis() as u64;
+                            let reject_msg = format!(
+                                "Tool execution rejected by human operator. Reason: {}",
+                                rejection_reason.as_deref().unwrap_or("Action not permitted by user.")
+                            );
+                            let _ = self.db.record_audit_event(
+                                Some(session_id), "tool_rejected", Some("send_message"), Some(&args_str), Some("rejected"), Some(duration as i64),
+                            ).await;
+                            let _ = event_tx.send(AgentEvent::ToolCompleted {
+                                id: call_id.clone(), tool_name: "send_message".to_string(), success: false, output: reject_msg.clone(), duration_ms: duration,
+                            }).await;
+                            reject_msg
+                        };
+
+                        let tc = ToolCallParam { id: call_id.clone(), kind: "function".to_string(), function: ToolCallFunctionParam { name: "send_message".to_string(), arguments: args_str } };
+                        chat_messages.push(ChatMessageParam { role: "assistant".to_string(), content: String::new(), name: None, tool_call_id: None, tool_calls: Some(vec![tc]), images: None });
+                        chat_messages.push(ChatMessageParam { role: "tool".to_string(), content: output, name: Some("send_message".to_string()), tool_call_id: Some(call_id), tool_calls: None, images: None });
+                        break;
+                    }
+                }
+
+                if is_action_turn && !current_turn_text.is_empty() {
+                    let _ = event_tx.send(AgentEvent::Token { content: current_turn_text.clone() }).await;
                 }
                 last_completed_text = current_turn_text;
                 last_completed_thought = current_turn_thought;
@@ -225,7 +341,32 @@ impl AgentRunner {
             });
 
             for (_idx, (call_id, tool_name, args_str)) in sorted_calls {
-                let parsed_args: Value = serde_json::from_str(&args_str).unwrap_or_else(|_| json!({}));
+                let mut parsed_args: Value = serde_json::from_str(&args_str).unwrap_or_else(|_| json!({}));
+
+                // If this is a send_message following a translation in this turn, enforce authentic translation
+                if tool_name == "send_message" && is_translate_and_send && translated_in_this_turn {
+                    if let Some(ref trans_text) = current_translated_text {
+                        let hist_strings: Vec<String> = chat_messages.iter().map(|m| m.content.clone()).collect();
+                        let contact = crate::agent::contact::resolve_contact_from_history(&hist_strings, "");
+                        if let Some(obj) = parsed_args.as_object_mut() {
+                            let current_msg = obj.get("message").and_then(|m| m.as_str()).unwrap_or("");
+                            if current_msg != trans_text {
+                                tracing::info!(
+                                    "Enforcing authentic translated text for send_message: '{}' -> '{}'",
+                                    current_msg, trans_text
+                                );
+                                obj.insert("message".to_string(), json!(trans_text));
+                            }
+                            let current_to = obj.get("to").and_then(|t| t.as_str()).unwrap_or("");
+                            if current_to.is_empty() || current_to == "external_contact" {
+                                obj.insert("to".to_string(), json!(contact.target_to));
+                            }
+                        }
+                    }
+                }
+
+                let effective_args_str = serde_json::to_string(&parsed_args).unwrap_or_else(|_| args_str.clone());
+
                 let _ = event_tx.send(AgentEvent::ToolCallStarted {
                     id: call_id.clone(), tool_name: tool_name.clone(), arguments: parsed_args.clone(),
                 }).await;
@@ -236,7 +377,7 @@ impl AgentRunner {
 
                 let (final_args, tool_permitted, rejection_reason) = if policy == PolicyTier::RequireApproval {
                     crate::agent::hitl_handler::handle_hitl_approval(
-                        &self.db, &self.hitl, session_id, &tool_name, &args_str, &parsed_args, &risk_level, event_tx
+                        &self.db, &self.hitl, session_id, &tool_name, &effective_args_str, &parsed_args, &risk_level, event_tx
                     ).await
                 } else {
                     (parsed_args.clone(), true, None)
@@ -257,6 +398,11 @@ impl AgentRunner {
 
                     if tool_name == "translate" && res.success {
                         translated_in_this_turn = true;
+                        if let Ok(v) = serde_json::from_str::<Value>(&res.content) {
+                            if let Some(t) = v.get("translated").and_then(|s| s.as_str()) {
+                                current_translated_text = Some(t.to_string());
+                            }
+                        }
                     }
 
                     if tool_name == "complete_onboarding"
