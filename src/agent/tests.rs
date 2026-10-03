@@ -342,20 +342,19 @@ fn test_extract_thought_and_response_strips_pseudo_function_calls() {
 }
 
 #[test]
-fn test_build_translate_and_send_directive_format() {
+fn test_build_send_confirmation_directive_format() {
     let mut contact = super::contact::ResolvedContact::default();
     contact.sender_name = "Test Peer".to_string();
     contact.target_to = "120363000000000001@g.us".to_string();
     contact.detected_dialect = "gujlish".to_string();
 
-    let directive = super::contact::build_translate_and_send_directive(
-        "Translate and send: \"Good here, just checking in.\"",
+    let directive = super::contact::build_send_confirmation_directive(
+        "Send: \"Good here, just checking in.\"",
         &contact,
     );
 
-    assert!(!directive.contains("Call: translate("));
-    assert!(directive.contains("MANDATORY SYSTEM DIRECTIVE: TRANSLATE AND SEND"));
-    assert!(directive.contains("Target dialect/language: \"gujlish\""));
+    assert!(directive.contains("MANDATORY SYSTEM DIRECTIVE: SEND MESSAGE"));
+    assert!(directive.contains("Target recipient (to): \"120363000000000001@g.us\""));
     assert!(directive.contains("Do NOT write pseudocode"));
 }
 

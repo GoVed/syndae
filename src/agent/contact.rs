@@ -142,43 +142,6 @@ pub fn extract_draft_text(user_prompt: &str) -> String {
     extracted
 }
 
-pub fn build_translate_and_send_directive(user_prompt: &str, contact: &ResolvedContact) -> String {
-    let draft = extract_draft_text(user_prompt);
-    let channel_display = if !contact.channel_name.is_empty() {
-        format!("Group: {}", contact.channel_name)
-    } else {
-        contact.target_to.clone()
-    };
-
-    let user_lower = user_prompt.to_lowercase();
-    let target_lang = if user_lower.contains("in hindi") || user_lower.contains("hinglish") {
-        "hinglish"
-    } else if user_lower.contains("in spanish") {
-        "spanish"
-    } else if user_lower.contains("in gujarati") {
-        "gujarati"
-    } else if !contact.detected_dialect.is_empty() && contact.detected_dialect != "english" {
-        &contact.detected_dialect
-    } else {
-        "gujlish"
-    };
-
-    format!(
-        "\n\n[MANDATORY SYSTEM DIRECTIVE: TRANSLATE AND SEND]\n\
-        The operator confirmed sending this reply to {} ({}).\n\
-        Message draft: \"{}\"\n\
-        Target dialect/language: \"{}\"\n\
-        Target recipient (to): \"{}\"\n\n\
-        INSTRUCTIONS FOR THIS TURN:\n\
-        1. You MUST execute the `translate` tool with text: \"{}\" and target_lang: \"{}\".\n\
-        2. Do NOT write pseudocode, code blocks, or function syntax (e.g. `translate(...)`) in your chat response text.\n\
-        3. Do NOT output the English draft or any foreign words in chat prose.\n\
-        4. Trigger the tool call directly via the structured tool call interface.\n",
-        contact.sender_name, channel_display, draft, target_lang, contact.target_to,
-        draft, target_lang
-    )
-}
-
 pub fn build_send_confirmation_directive(user_prompt: &str, contact: &ResolvedContact) -> String {
     let draft = extract_draft_text(user_prompt);
     let channel_display = if !contact.channel_name.is_empty() {
@@ -199,11 +162,6 @@ pub fn build_send_confirmation_directive(user_prompt: &str, contact: &ResolvedCo
         contact.sender_name, channel_display, draft, contact.target_to,
         contact.target_to, draft
     )
-}
-
-pub fn is_translate_and_send_intent(user_prompt: &str) -> bool {
-    let p = user_prompt.trim().to_lowercase();
-    p.starts_with("translate and send") || p.starts_with("translate & send")
 }
 
 pub fn is_send_confirmation_intent(user_prompt: &str) -> bool {

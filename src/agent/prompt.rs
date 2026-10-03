@@ -91,24 +91,16 @@ pub fn build_agent_system_prompt(
     system_context.push_str("Actively get to know your user's world! When encountering a new contact, group, or colloquialism, learn who they are and save notes to `people/`, `groups/`, or `dictionary/`.\n");
     system_context.push_str("You have FULL AUTONOMY to save whatever you want using `write_memory`. Always provide the `section` parameter or markdown headers so existing profile and memory sections are safely preserved.\n");
 
-    // ZERO-TOLERANCE HIGH-RECENCY DIRECTIVE AT THE VERY END OF SYSTEM PROMPT
-    system_context.push_str("\n=== CRITICAL OPERATING RULE: ZERO FOREIGN WORDS IN OPTIONS (STRICT 100% ENGLISH) ===\n");
-    system_context.push_str("Under NO circumstances may any <option> tag or response prose contain Gujarati, Hindi, Gujlish, Hinglish, Spanish, French, or ANY foreign dialect words!\n");
-    system_context.push_str("❌ STRICTLY FORBIDDEN IN OPTIONS (NEVER DRAFT FOREIGN DIALECTS):\n");
-    system_context.push_str("<option>Playful Gujlish: \"Bug? Eh, AI banu tina fix karu!\"</option>\n");
-    system_context.push_str("<option>Got it! Bug fix karyu na, radiant push karu na!</option>\n");
-    system_context.push_str("<option>Jokena Gujlish: \"Jira banai de? Eh, AI banu tina...\"</option>\n\n");
-    system_context.push_str("✅ MANDATORY CORRECT FORMAT (100% CLEAN ENGLISH DRAFT):\n");
-    system_context.push_str("<option>Translate and send: \"Found a bug? I will fix it right away! Automatic DM replies? Let's solve it! 😂\"</option>\n");
-    system_context.push_str("<option>Translate and send: \"Got it! Bug is noted. Want me to report this to the group admin?\"</option>\n");
-    system_context.push_str("<option>Translate and send: \"Haha, even an AI has bugs! Let's get the admin to fix this.\"</option>\n");
-    system_context.push_str("<option other=\"true\">Custom reply or different approach...</option>\n\n");
-    system_context.push_str("Always formulate proposed messages in 100% clean English. The translation into the contact's dialect (e.g. Gujlish) is executed exclusively by the `translate` tool AFTER the operator selects an option!\n");
+    // COMMUNICATION & MULTILINGUAL GUIDELINES
+    system_context.push_str("\n=== COMMUNICATION & MULTILINGUAL CAPABILITIES ===\n");
+    system_context.push_str("You have full autonomy to understand and communicate with your operator and external contacts across languages and regional dialects.\n");
+    system_context.push_str("If you need translation assistance across languages or regional dialects (like Gujlish or Hinglish), the `translate` tool is available in your toolset. If you can translate directly or understand the language effortlessly, you can act directly without needing the translate tool.\n");
+    system_context.push_str("When proposing suggested choices, provide concise, relevant options in <options> tags so the operator can easily select or steer the conversation.\n");
 
     system_context
 }
 
-use crate::agent::contact::{build_send_confirmation_directive, build_translate_and_send_directive, ResolvedContact};
+use crate::agent::contact::{build_send_confirmation_directive, ResolvedContact};
 
 /// Enriches user message content with high-priority directives on the active turn.
 pub fn enrich_user_turn_content(
@@ -124,8 +116,6 @@ pub fn enrich_user_turn_content(
 
     let user_prompt_clean = user_prompt.trim().to_lowercase();
     let is_incoming_event = user_prompt.trim().starts_with("[INCOMING TOOL EVENT:");
-    let is_translate_and_send = user_prompt_clean.starts_with("translate and send")
-        || user_prompt_clean.starts_with("translate & send");
     let is_send_confirmation = user_prompt_clean == "send it" || user_prompt_clean.starts_with("send it to")
         || user_prompt_clean == "send" || user_prompt_clean == "yes send it"
         || user_prompt_clean.contains("use proper tool to send")
@@ -135,7 +125,7 @@ pub fn enrich_user_turn_content(
         || user_prompt_clean.contains("to gujlish") || user_prompt_clean.contains("to gujarati")
         || user_prompt_clean.contains("say this in gujlish")
         || user_prompt_clean.contains("explain this in gujlish") || user_prompt_clean.contains("fully in gujlish")
-        || (user_prompt_clean.contains("translate") && !is_translate_and_send);
+        || user_prompt_clean.contains("translate");
     let is_reply_request = user_prompt_clean.contains("reply")
         || user_prompt_clean.contains("respond")
         || user_prompt_clean.contains("answer")
@@ -154,17 +144,11 @@ pub fn enrich_user_turn_content(
     if is_incoming_event && user_prompt.contains("Event: Reaction") {
         content.push_str("\n\n[DIRECTIVE: INCOMING REACTION EVENT:\nA contact or group member reacted to a message. Emoji reactions are acknowledgments and typically do not require an external reply unless follow-up is necessary. If you respond or react back, propose English options or invoke `send_reaction` if instructed.]");
     } else if is_incoming_event {
-        content.push_str("\n\n[DIRECTIVE: INCOMING EVENT FROM EXTERNAL SENDER OR GROUP:\n1. CRITICAL: This is an INCOMING message event. Do NOT call `send_message`, `send_sticker`, or any outbound tool on this turn! The operator has NOT instructed you to send anything yet.\n2. External contacts do NOT see your chat. Address your operator directly.\n3. If this message is a media share (video, photo, document, sticker) with no text, acknowledge what was received in the group/chat and propose relevant options.\n4. If the message contains non-English words, regional slang, or dialects (e.g. Gujarati, Gujlish, Hindi, Spanish), execute the `translate` tool (`target_lang: \"english\"`) immediately to get the exact English translation. Do NOT guess foreign words in your head.\n5. Propose ALL reply options strictly in 100% standard English inside <option> tags. Format each reply option as: `<option>Translate and send: \"<English draft>\"</option>`. NEVER draft Hindi, Gujarati, or foreign phrases inside <option> tags.\n6. NEVER hallucinate prior conversation turns or randomly attempt to resend past links.]");
+        content.push_str("\n\n[DIRECTIVE: INCOMING EVENT FROM EXTERNAL SENDER OR GROUP:\n1. This is an INCOMING message event. Address your operator directly.\n2. Do NOT send an outbound message on this turn unless the operator instructed you to do so.\n3. If you need translation assistance for non-English words, regional slang, or dialects, you can invoke the `translate` tool (`target_lang: \"english\"`). If you understand the text directly, you may proceed directly.\n4. Propose relevant next actions or reply choices inside <options> tags.]");
     } else if is_reaction_intent {
         content.push_str("\n\n[SYSTEM DIRECTIVE: The operator wants to send or remove an emoji reaction. Invoke the `send_reaction` tool. Specify `to` (the contact or chat) and `emoji` (the emoji or \"\" to remove). `message_id` is optional and defaults to the latest message in that chat.]");
     } else if is_image_request {
         content.push_str("\n\n[SYSTEM DIRECTIVE: The operator wants to find, get, or send photos/images. You HAVE access to `web_search`, `read_web_page`, `exec_container_command` (bash), and `send_image`. NEVER claim you cannot find, download, or send images! Execute `web_search` immediately (e.g. for free photos on Unsplash, Pexels, Wikimedia) to find high-quality image URLs, and call `send_image` or propose sending them in <options>.]");
-    } else if is_translate_and_send {
-        if let Some(contact) = contact_opt {
-            content.push_str(&build_translate_and_send_directive(user_prompt, contact));
-        } else {
-            content.push_str("\n\n[MANDATORY SYSTEM DIRECTIVE: TRANSLATE AND SEND:\nThe operator confirmed sending this reply. First execute the `translate` tool (`target_lang: \"gujlish\"` or appropriate dialect) with the English message to get the authentic translation, then invoke `send_message` with the translated text. Do NOT draft foreign words manually or output conversational text before calling the tool.]");
-        }
     } else if is_send_confirmation {
         if let Some(contact) = contact_opt {
             content.push_str(&build_send_confirmation_directive(user_prompt, contact));
@@ -172,11 +156,11 @@ pub fn enrich_user_turn_content(
             content.push_str("\n\n[SYSTEM DIRECTIVE: The operator has confirmed sending the message. You MUST immediately invoke the `send_message` tool. For `to`, pass the recipient contact or group name directly (e.g. \"Engineering Team\") or the full JID. Do not output conversational text before calling the tool.]");
         }
     } else if is_translate_request {
-        content.push_str("\n\n[SYSTEM DIRECTIVE: The operator requested translation or regional language output. Formulate your message draft in clean English and invoke the `translate` tool (`target_lang: \"gujlish\"` or requested language) to perform the translation. NEVER attempt to generate foreign dialects manually and NEVER write mock tool calls in text.]");
+        content.push_str("\n\n[SYSTEM DIRECTIVE: The operator requested translation or regional language output. You may use the `translate` tool if you need translation assistance, or translate directly if capable.]");
     } else if is_reply_request {
-        content.push_str("\n\n[DIRECTIVE: PROPOSING REPLIES TO EXTERNAL CONTACTS OR GROUPS:\n1. Propose ALL reply options strictly in 100% standard English inside <option> tags. Format each reply choice as: `<option>Translate and send: \"<Clean English Draft>\"</option>`.\n2. NEVER draft Gujarati, Gujlish, Hindi, Hinglish, Spanish, or ANY foreign dialect in <option> tags or prose! The operator must only see and approve 100% English options.\n3. Translation into the contact's dialect will be performed by the `translate` tool AFTER the operator selects an option.]");
+        content.push_str("\n\n[DIRECTIVE: PROPOSING REPLIES TO EXTERNAL CONTACTS OR GROUPS:\nPropose clear reply choices inside <options> tags so the operator can review and select.]");
     } else {
-        content.push_str("\n\n[CRITICAL REMINDER: Formulate all <option> choices strictly in 100% standard English. Never draft foreign dialect phrases inside <option> tags.]");
+        content.push_str("\n\n[REMINDER: Conclude your response with relevant next actions or options inside <options> tags.]");
     }
 
     content.push_str("\n\n[SYSTEM REMINDER: Conclude your response with <title>Concise Topic Title</title> (2-5 words) summarizing this conversation's current topic.]");
@@ -250,40 +234,7 @@ pub fn sanitize_option_tags(content: &str) -> String {
 }
 
 fn clean_single_option_body(body: &str) -> String {
-    let trimmed = body.trim();
-
-    // 1. If option ends with parenthesized English translation: e.g. '... (Create Jira ticket? Fix the bug!)'
-    if let Some(last_paren_open) = trimmed.rfind('(')
-        && trimmed.ends_with(')')
-        && last_paren_open > 0
-    {
-        let inside = trimmed[last_paren_open + 1..trimmed.len() - 1].trim();
-        if inside.len() >= 5 && inside.contains(' ') {
-            return format!("Translate and send: \"{}\"", inside);
-        }
-    }
-
-    // 2. Strip foreign dialect prefix: e.g. 'Playful Gujlish: "..."' -> 'Translate and send: "..."'
-    let dialect_prefixes = [
-        "Playful Gujlish:", "Jokena Gujlish:", "Casual Gujlish:", "Gujlish:",
-        "Playful Hinglish:", "Hinglish:", "Playful Spanish:", "Spanish:",
-        "Action-oriented:", "Meme-style:", "Light joke:",
-    ];
-
-    for prefix in dialect_prefixes {
-        if let Some(stripped) = trimmed.strip_prefix(prefix) {
-            let inner = stripped.trim();
-            if inner.starts_with('"') && inner.ends_with('"') {
-                return format!("Translate and send: {}", inner);
-            } else if inner.starts_with('"') {
-                return format!("Translate and send: {}\"", inner);
-            } else {
-                return format!("Translate and send: \"{}\"", inner);
-            }
-        }
-    }
-
-    trimmed.to_string()
+    body.trim().to_string()
 }
 
 #[cfg(test)]
@@ -291,11 +242,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_build_agent_system_prompt_enforces_zero_foreign_words() {
+    fn test_build_agent_system_prompt_guidelines() {
         let prompt = build_agent_system_prompt("Base Memory", false, "high", true);
-        assert!(prompt.contains("CRITICAL OPERATING RULE: ZERO FOREIGN WORDS IN OPTIONS"));
-        assert!(prompt.contains("MANDATORY CORRECT FORMAT (100% CLEAN ENGLISH DRAFT)"));
-        assert!(prompt.contains("STRICTLY FORBIDDEN IN OPTIONS"));
+        assert!(prompt.contains("COMMUNICATION & MULTILINGUAL CAPABILITIES"));
+        assert!(prompt.contains("translate` tool is available"));
         assert!(prompt.contains("MULTIMODAL VISION CAPABILITY (NATIVE)"));
     }
 
@@ -308,23 +258,20 @@ mod tests {
             None,
         );
         assert!(content.contains("[DIRECTIVE: PROPOSING REPLIES TO EXTERNAL CONTACTS OR GROUPS:"));
-        assert!(content.contains("Propose ALL reply options strictly in 100% standard English"));
-        assert!(content.contains("NEVER draft Gujarati, Gujlish"));
         assert!(content.contains("<title>Concise Topic Title</title>"));
     }
 
     #[test]
-    fn test_sanitize_option_tags_parenthesized_translation() {
+    fn test_sanitize_option_tags_preserves_content() {
         let input = r#"Here are the options:
 <options>
-<option>Jokena Gujlish: "Jira banai de? Eh, AI banu..." (Create Jira ticket? Fix the bug right away!)</option>
-<option>Playful Gujlish: "Bug? Eh, AI banu tina fix karu!"</option>
+<option>Reply in English: "Create Jira ticket and fix the bug right away!"</option>
+<option>Playful response: "Bug? I will fix it now!"</option>
 <option other="true">Custom reply...</option>
 </options>"#;
 
         let sanitized = sanitize_option_tags(input);
-        assert!(sanitized.contains("<option>Translate and send: \"Create Jira ticket? Fix the bug right away!\"</option>"));
-        assert!(sanitized.contains("<option>Translate and send: \"Bug? Eh, AI banu tina fix karu!\"</option>"));
+        assert!(sanitized.contains("<option>Reply in English: \"Create Jira ticket and fix the bug right away!\"</option>"));
         assert!(sanitized.contains("<option other=\"true\">Custom reply...</option>"));
     }
 }
