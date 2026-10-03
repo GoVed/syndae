@@ -324,4 +324,5 @@ syndae/
 ---
 
 ## License
-MIT License. Built for zero-overhead personal AI operations on Linux.
+
+Apache License 2.0. Built for zero-overhead personal AI operations on Linux. See [LICENSE](LICENSE) for details.
