@@ -13,7 +13,6 @@ use crate::router::MultiModelRouter;
 use crate::telemetry::TelemetryCollector;
 
 pub mod compression;
-pub mod contact;
 pub mod diagnosis;
 pub mod execution;
 pub mod hitl_handler;
@@ -178,8 +177,6 @@ impl AgentRunner {
         });
 
         let hist_len = history.len();
-        let hist_texts: Vec<String> = history.iter().map(|m| m.content.clone()).collect();
-        let resolved_contact = contact::resolve_contact_from_history(&hist_texts, &base_context);
 
         for (idx, msg) in history.iter().enumerate() {
             if msg.content.trim().is_empty()
@@ -194,10 +191,14 @@ impl AgentRunner {
                 _ => "user",
             };
             let tool_calls_param = msg.tool_calls.as_deref().and_then(|tc| serde_json::from_str(tc).ok());
-            let images_param = msg.images.as_deref().and_then(|imgs| serde_json::from_str(imgs).ok());
+            let images_param = if is_vision_capable {
+                msg.images.as_deref().and_then(|imgs| serde_json::from_str(imgs).ok())
+            } else {
+                None
+            };
 
             let is_last_turn = idx + 1 == hist_len && msg.role == "user";
-            let content = prompt::enrich_user_turn_content(user_prompt, &msg.content, is_last_turn, Some(&resolved_contact));
+            let content = prompt::enrich_user_turn_content(user_prompt, &msg.content, is_last_turn);
 
             chat_messages.push(ChatMessageParam {
                 role: llm_role.to_string(),

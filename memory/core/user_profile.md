@@ -8,8 +8,8 @@
 
 ## Location & Routine
 - **Location:** [Your City / Region]
-- **Daily Work:** [Your Role / Organization]
-- **Commute & Area:** [Your Area]
+- **Daily Work:** [Pending]
+- **Commute & Area:** [Pending]
 
 ## How I Like to Communicate
 - **Tone:** Friendly, conversational, warm, and direct. Avoid unnecessary corporate filler or technical AI disclaimers.

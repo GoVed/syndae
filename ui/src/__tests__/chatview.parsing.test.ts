@@ -54,6 +54,32 @@ I'm Syndae, your personal assistant! I'm here to help with tasks and notes.
     expect(res.options[1].label).toBe('Jot down a quick note');
   });
 
+  it('extractOptionsAndContent cleans multiple duplicate <options> blocks without leaking raw tags', () => {
+    const raw = `Mantra just asked, "whatssup!" — a classic casual opener!
+
+<options>
+<option>Translate and send: "Just checking in."</option>
+<option>Send a waving sticker</option>
+</options>
+
+<options>
+<option>Translate and send: "Just checking in."</option>
+<option>Send a waving sticker</option>
+</options>
+
+<options>
+<option>Translate and send: "Just checking in."</option>
+<option>Send a waving sticker</option>
+</options>`;
+
+    const res = extractOptionsAndContent(raw);
+    expect(res.content).toBe('Mantra just asked, "whatssup!" — a classic casual opener!');
+    expect(res.content).not.toContain('<options>');
+    expect(res.content).not.toContain('</options>');
+    expect(res.options.length).toBe(3); // 2 options + auto Other
+    expect(res.options[0].label).toBe('Translate and send: "Just checking in."');
+  });
+
   it('parseToolEvent parses standard, generic protocol, and legacy formats correctly', () => {
     // 1. Standard protocol-agnostic Syndae format
     const stdFormat = `[INCOMING TOOL EVENT: WHATSAPP]

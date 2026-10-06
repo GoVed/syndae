@@ -148,6 +148,7 @@ impl OpenAiClient {
             "temperature": 0.7,
             "frequency_penalty": 0.2,
             "presence_penalty": 0.2,
+            "stop": ["<|ifm|im_end|>", "<|im_end|>", "<|ifm|endoftext|>", "<|endoftext|>"],
         });
 
         if let Some(mt) = max_tokens {
@@ -219,6 +220,12 @@ impl OpenAiClient {
                 let mut rb = body.clone();
                 if let Some(obj) = rb.as_object_mut() {
                     obj.remove("reasoning_effort");
+                }
+                Some(rb)
+            } else if body.get("stop").is_some() && (text.contains("stop") || text.contains("extra_forbidden") || text.contains("unrecognized")) {
+                let mut rb = body.clone();
+                if let Some(obj) = rb.as_object_mut() {
+                    obj.remove("stop");
                 }
                 Some(rb)
             } else {

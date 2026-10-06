@@ -129,8 +129,12 @@ export const FirstBootScreen: React.FC<FirstBootScreenProps> = ({
             <div>
               {/* Enclave Status Header */}
               <div className="mb-6 flex flex-col items-center text-center">
-                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-700/80 bg-zinc-800/80 text-zinc-200 shadow-md">
-                  <Sparkles className="h-7 w-7" />
+                <div className="mb-3.5 flex h-16 w-16 items-center justify-center">
+                  <img
+                    src="/icon-192.png"
+                    alt="Syndae AI"
+                    className="h-16 w-16 rounded-2xl border border-emerald-500/30 shadow-lg object-cover"
+                  />
                 </div>
 
                 <div className="flex items-center gap-2">

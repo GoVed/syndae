@@ -51,13 +51,13 @@ pub async fn update_channel_policy(
 ) -> impl IntoResponse {
     let existing = state.db.get_channel_policy(&payload.channel_id).await.unwrap_or(None);
     let protocol = payload.protocol.as_deref().unwrap_or_else(|| {
-        existing.as_ref().map(|e| e.protocol.as_str()).unwrap_or("whatsapp")
+        existing.as_ref().map(|e| e.protocol.as_str()).unwrap_or("generic")
     });
     let channel_name = payload.channel_name.as_deref().or_else(|| {
         existing.as_ref().and_then(|e| e.channel_name.as_deref())
     });
     let is_group = payload.is_group.unwrap_or_else(|| {
-        existing.as_ref().map(|e| e.is_group).unwrap_or_else(|| payload.channel_id.ends_with("@g.us"))
+        existing.as_ref().map(|e| e.is_group).unwrap_or(false)
     });
 
     match state

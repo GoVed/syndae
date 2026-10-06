@@ -79,6 +79,7 @@ export interface ChatMessage {
   content: string;
   thought?: string | null;
   tool_calls?: string | null;
+  images?: string | string[] | null;
   created_at: string;
 }
 

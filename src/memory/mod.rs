@@ -226,7 +226,7 @@ impl MemoryManager {
     }
 }
 
-fn sanitize_rel_path(path: &str) -> Result<String> {
+pub fn sanitize_rel_path(path: &str) -> Result<String> {
     let clean = path.trim().trim_start_matches('/').replace('\\', "/");
     if clean.contains("..") {
         bail!("Path traversal attempt rejected: {}", path);

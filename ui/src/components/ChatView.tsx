@@ -66,6 +66,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
+  const [attachedImages, setAttachedImages] = useState<string[]>([]);
+
+  const handleAddImages = (newImgs: string[]) => {
+    setAttachedImages(prev => [...prev, ...newImgs]);
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setAttachedImages(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleStartHeaderRename = () => {
     if (!activeSession || !onRenameSession) return;
@@ -114,11 +123,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
     chatBottomRef.current?.scrollIntoView?.({ behavior: 'smooth' });
   }, [messages, liveStreamingText, liveThought, liveToolExecutions]);
 
-  const handleSend = () => {
-    if (!inputPrompt.trim() || !activeSession || isStreaming) return;
+  const handleSend = (imagesToSend?: string[]) => {
+    const imgs = imagesToSend ?? (attachedImages.length > 0 ? attachedImages : undefined);
+    if ((!inputPrompt.trim() && (!imgs || imgs.length === 0)) || !activeSession || isStreaming) return;
 
-    onSendPrompt(activeSession.id, inputPrompt, mode);
+    const finalPrompt = inputPrompt.trim() || (imgs && imgs.length > 0 ? 'Analyze this image.' : '');
+    onSendPrompt(activeSession.id, finalPrompt, mode, imgs);
     setInputPrompt('');
+    setAttachedImages([]);
   };
 
   const sessionTickets = pendingTickets.filter(
@@ -255,8 +267,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 min-w-0">
           {messages.length === 0 && !isStreaming && (
             <div className="flex flex-col items-center justify-center h-full text-center max-w-xl mx-auto space-y-4 p-4 my-auto animate-fade-in">
-              <div className="w-14 h-14 rounded-2xl bg-zinc-800/80 border border-zinc-700/80 flex items-center justify-center text-zinc-200 shadow-md">
-                <Bot className="w-7 h-7" />
+              <div className="w-16 h-16 rounded-2xl border border-emerald-500/30 flex items-center justify-center shadow-lg overflow-hidden">
+                <img src="/icon-192.png" alt="Syndae AI" className="w-full h-full object-cover" />
               </div>
               <div className="space-y-1.5">
                 <h3 className="text-lg font-bold text-slate-100">How can I help you today?</h3>
@@ -357,6 +369,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
           onChangePrompt={setInputPrompt}
           onSend={handleSend}
           onClearChatError={onClearChatError}
+          attachedImages={attachedImages}
+          onAddImages={handleAddImages}
+          onRemoveImage={handleRemoveImage}
         />
       </main>
     </div>

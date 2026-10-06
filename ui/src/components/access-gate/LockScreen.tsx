@@ -26,8 +26,15 @@ export const LockScreen: React.FC<LockScreenProps> = ({
 
       <div className="relative w-full max-w-md rounded-3xl border border-white/10 bg-zinc-900/90 p-8 shadow-2xl backdrop-blur-2xl animate-fade-in">
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-950/40 text-emerald-400 shadow-md">
-            <Lock className="h-7 w-7" />
+          <div className="relative mb-3.5 flex h-16 w-16 items-center justify-center">
+            <img
+              src="/icon-192.png"
+              alt="Syndae AI"
+              className="h-16 w-16 rounded-2xl border border-emerald-500/30 shadow-lg object-cover"
+            />
+            <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-zinc-900 border border-emerald-500/40 text-emerald-400 shadow-sm">
+              <Lock className="h-3 w-3" />
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

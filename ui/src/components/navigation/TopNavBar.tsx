@@ -48,7 +48,11 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
           className="flex items-center space-x-2.5 cursor-pointer group"
           title="Return to Chat"
         >
-          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+          <img
+            src="/icon-192.png"
+            alt="Syndae Icon"
+            className="w-5 h-5 rounded-md shadow-sm border border-emerald-500/30 object-cover group-hover:scale-105 transition-transform"
+          />
           <span className="font-bold tracking-wider text-base text-slate-100 font-sans group-hover:text-emerald-400 transition-colors">
             SYNDAE
           </span>

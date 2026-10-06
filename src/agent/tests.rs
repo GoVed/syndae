@@ -255,6 +255,66 @@ fn test_find_repetition_cutoff_detects_repeated_phrase() {
 }
 
 #[test]
+fn test_arrest_response_repetition_and_options_sanitization() {
+    use super::reasoning::arrest_response_repetition;
+    use super::prompt::{sanitize_option_tags, strip_duplicate_options_blocks};
+
+    // 1. Arrest response on terminal </title>
+    let mut title_response = "Here is the plan.\n<title>Session Setup</title>".to_string();
+    let mut acc = title_response.clone();
+    assert!(arrest_response_repetition(&mut title_response, &mut acc));
+    assert!(title_response.ends_with("</title>"));
+
+    // 2. Discard output generated past terminal </title>
+    let mut runaway_after_title = "Here is the plan.\n<title>Session Setup</title>\n\n<options><option>extra</option></options>".to_string();
+    let mut acc = runaway_after_title.clone();
+    assert!(arrest_response_repetition(&mut runaway_after_title, &mut acc));
+    assert_eq!(runaway_after_title, "Here is the plan.\n<title>Session Setup</title>");
+    assert_eq!(acc, "Here is the plan.\n<title>Session Setup</title>");
+
+    // 3. Arrest duplicate <options> loop
+    let mut looping_options = r#"Mantra just asked, "whatssup!" — a classic casual opener!
+
+<options>
+<option>Translate and send: "Just checking in. What's new with you?"</option>
+<option>Translate and send: "Hey! Just wanted to say hi."</option>
+<option other="true">Other (specify custom reply)...</option>
+</options>
+
+<options>
+<option>Translate and send: "Just checking in. What's new with you?"</option>"#.to_string();
+    let mut acc_loop = looping_options.clone();
+    assert!(arrest_response_repetition(&mut looping_options, &mut acc_loop));
+    assert_eq!(looping_options.matches("<options>").count(), 1);
+    assert!(looping_options.ends_with("</options>"));
+    assert_eq!(acc_loop, looping_options);
+
+    // 4. Test sanitizing duplicate options blocks preserves only the first container
+    let multi_options = r#"Greeting text
+
+<options>
+<option>Choice 1</option>
+<option>Choice 2</option>
+</options>
+
+<options>
+<option>Choice 1</option>
+<option>Choice 2</option>
+</options>
+
+<title>Conversation Title</title>"#;
+
+    let stripped = strip_duplicate_options_blocks(multi_options);
+    assert_eq!(stripped.matches("<options>").count(), 1);
+    assert!(stripped.contains("<title>Conversation Title</title>"));
+
+    let sanitized = sanitize_option_tags(multi_options);
+    assert_eq!(sanitized.matches("<options>").count(), 1);
+    assert!(sanitized.contains("<option>Choice 1</option>"));
+    assert!(sanitized.contains("<title>Conversation Title</title>"));
+}
+
+#[test]
 fn test_queue_priority_and_pruning_logic() {
     use std::collections::VecDeque;
     use chrono::{Utc, Duration};
@@ -339,22 +399,5 @@ fn test_extract_thought_and_response_strips_pseudo_function_calls() {
     assert!(resp.contains("I will send your reply now!"));
     assert!(thought.is_some());
     assert!(thought.unwrap().contains("translate("));
-}
-
-#[test]
-fn test_build_send_confirmation_directive_format() {
-    let mut contact = super::contact::ResolvedContact::default();
-    contact.sender_name = "Test Peer".to_string();
-    contact.target_to = "120363000000000001@g.us".to_string();
-    contact.detected_dialect = "gujlish".to_string();
-
-    let directive = super::contact::build_send_confirmation_directive(
-        "Send: \"Good here, just checking in.\"",
-        &contact,
-    );
-
-    assert!(directive.contains("MANDATORY SYSTEM DIRECTIVE: SEND MESSAGE"));
-    assert!(directive.contains("Target recipient (to): \"120363000000000001@g.us\""));
-    assert!(directive.contains("Do NOT write pseudocode"));
 }
 

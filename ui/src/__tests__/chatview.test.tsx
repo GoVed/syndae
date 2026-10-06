@@ -318,5 +318,50 @@ OPERATING DIRECTIVES:
     expect(options[2].label).toBe('Custom reply...');
     expect(options[2].isOther).toBe(true);
   });
+
+  it('renders attached images in message and displays lightbox modal when clicked', async () => {
+    const msgWithImage: ChatMessage = {
+      id: 'msg-with-image',
+      session_id: 'test-session-1',
+      role: 'user',
+      content: 'Here is my receipt',
+      images: JSON.stringify(['data:image/jpeg;base64,/9j/4AAQSkZJRg==']),
+      thought: null,
+      created_at: new Date().toISOString(),
+    };
+
+    render(
+      <ChatView
+        sessions={[mockSession]}
+        activeSession={mockSession}
+        onSelectSession={() => {}}
+        onCreateSession={() => {}}
+        onDeleteSession={() => {}}
+        pendingTickets={[]}
+        onResolveTicket={() => {}}
+        memoryFiles={[]}
+        onSendPrompt={() => {}}
+        liveThought=""
+        liveStreamingText=""
+        liveToolExecutions={[]}
+        isStreaming={false}
+        messages={[msgWithImage]}
+      />
+    );
+
+    const img = screen.getByAltText('Attached image 1') as HTMLImageElement;
+    expect(img).toBeInTheDocument();
+    expect(img.src).toContain('data:image/jpeg;base64');
+
+    // Clicking image triggers lightbox
+    await act(async () => {
+      img.click();
+    });
+
+    const expandedImg = screen.getByAltText('Expanded view');
+    expect(expandedImg).toBeInTheDocument();
+    expect(screen.getByText('Open / Download')).toBeInTheDocument();
+  });
 });
+
 

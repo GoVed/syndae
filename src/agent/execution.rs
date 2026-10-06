@@ -18,7 +18,7 @@ impl AgentRunner {
         &self,
         session_id: &str,
         model_cfg: &ModelConfigRecord,
-        user_prompt: &str,
+        _user_prompt: &str,
         mut chat_messages: Vec<ChatMessageParam>,
         available_tools: Vec<ToolParam>,
         is_mission_mode: bool,
@@ -32,7 +32,7 @@ impl AgentRunner {
         let tools_overhead = estimate_tools_tokens(&available_tools);
         let context_limit = if model_cfg.context_length > 0 { model_cfg.context_length as usize } else { 16384 };
         let target_generation_headroom = (context_limit / 4).clamp(1024, 8192);
-        let mut max_prompt_budget = context_limit
+        let max_prompt_budget = context_limit
             .saturating_sub(target_generation_headroom)
             .saturating_sub(tools_overhead)
             .max(1024);
@@ -48,9 +48,7 @@ impl AgentRunner {
             .unwrap_or_else(|| "high".to_string());
 
         let mut had_tool_rejection = false;
-        let is_send_confirmation = crate::agent::contact::is_send_confirmation_intent(user_prompt);
-        let is_reaction_intent = crate::agent::contact::is_reaction_intent(user_prompt);
-        let is_action_turn = is_send_confirmation || is_reaction_intent;
+        let mut executed_any_tool = false;
 
         while iteration < max_iterations {
             iteration += 1;
@@ -65,22 +63,13 @@ impl AgentRunner {
             let prompt_tokens = estimate_messages_tokens(&chat_messages) + tools_overhead;
             let remaining_kv = context_limit.saturating_sub(prompt_tokens + 32).max(512);
 
-            let max_tokens_limit = if is_action_turn { 1024 } else if is_mission_mode { 4096 } else { 2048 };
+            let max_tokens_limit = if is_mission_mode { 4096 } else { 2048 };
             let max_gen_tokens = Some((remaining_kv.min(max_tokens_limit)) as u32);
-            let turn_reasoning_effort = if is_action_turn { "low" } else { reasoning_effort.as_str() };
-
-            let tool_choice = if available_tools.is_empty() {
-                None
-            } else if iteration == 1 && is_action_turn {
-                Some("required")
-            } else {
-                None
-            };
 
             let mut rx = self.router.dispatch_stream(
                 &model_cfg.provider, model_cfg.base_url.as_deref(), model_cfg.api_key.as_deref(),
                 &model_cfg.model_id, chat_messages.clone(), available_tools.clone(), max_gen_tokens,
-                Some(turn_reasoning_effort), tool_choice,
+                Some(reasoning_effort.as_str()), None,
             ).await;
 
             let mut current_turn_text = String::new();
@@ -108,7 +97,7 @@ impl AgentRunner {
                         token_count_turn += 1;
                         self.telemetry.record_tokens(1);
                         let _ = event_tx.send(AgentEvent::Token { content: tok }).await;
-                        if crate::agent::reasoning::arrest_repetition(&mut current_turn_text, &mut accumulated_full_response) {
+                        if crate::agent::reasoning::arrest_response_repetition(&mut current_turn_text, &mut accumulated_full_response) {
                             break;
                         }
                     }
@@ -139,18 +128,13 @@ impl AgentRunner {
                 }
             }
 
-            if let Some(err) = turn_error {
-                if (err.contains("exceeds the available context size")
-                    || err.contains("exceed_context_size_error")
-                    || err.contains("context_length_exceeded"))
-                    && iteration < max_iterations
-                {
-                    tracing::warn!("Context size overflow from engine; applying emergency compression retry");
-                    max_prompt_budget = (max_prompt_budget / 2).max(512);
-                    chat_messages = prepare_auto_compressed_messages(chat_messages, max_prompt_budget);
-                    continue;
-                }
+            let elapsed_sec = start_time.elapsed().as_secs_f32();
+            if elapsed_sec > 0.1 && token_count_turn > 0 {
+                let rate = token_count_turn as f32 / elapsed_sec;
+                self.telemetry.update_tok_rate(rate).await;
+            }
 
+            if let Some(err) = turn_error {
                 let _ = event_tx.send(AgentEvent::Error { message: err.clone() }).await;
                 let diagnostic = self.diagnose_inference_failure(model_cfg, &err).await;
                 if accumulated_full_response.trim().is_empty() {
@@ -160,22 +144,19 @@ impl AgentRunner {
                 break;
             }
 
-            let elapsed_sec = start_time.elapsed().as_secs_f32();
-            if elapsed_sec > 0.1 && token_count_turn > 0 {
-                let rate = token_count_turn as f32 / elapsed_sec;
-                self.telemetry.update_tok_rate(rate).await;
+            if !current_turn_text.trim().is_empty() {
+                last_completed_text = current_turn_text.clone();
+            }
+            if !current_turn_thought.trim().is_empty() {
+                last_completed_thought = current_turn_thought.clone();
             }
 
-            // If no tool calls were made, the model provided a textual answer.
+            // No tool calls emitted: turn completed
             if tool_calls_map.is_empty() {
-                last_completed_text = current_turn_text;
-                last_completed_thought = current_turn_thought;
                 break;
             }
 
-            // Process tool calls
-            let mut sorted_calls: Vec<(usize, (String, String, String))> =
-                tool_calls_map.into_iter().collect();
+            let mut sorted_calls: Vec<(usize, (String, String, String))> = tool_calls_map.into_iter().collect();
             sorted_calls.sort_by_key(|(idx, _)| *idx);
 
             for (_idx, (call_id, _name, _args)) in &mut sorted_calls {
@@ -187,14 +168,19 @@ impl AgentRunner {
             let tool_params: Vec<ToolCallParam> = sorted_calls
                 .iter()
                 .map(|(_, (cid, name, args))| ToolCallParam {
-                    id: cid.clone(), kind: "function".to_string(),
+                    id: cid.clone(),
+                    kind: "function".to_string(),
                     function: ToolCallFunctionParam { name: name.clone(), arguments: args.clone() },
                 })
                 .collect();
 
             chat_messages.push(ChatMessageParam {
-                role: "assistant".to_string(), content: current_turn_text.clone(),
-                name: None, tool_call_id: None, tool_calls: Some(tool_params), images: None,
+                role: "assistant".to_string(),
+                content: current_turn_text.clone(),
+                name: None,
+                tool_call_id: None,
+                tool_calls: Some(tool_params),
+                images: None,
             });
 
             for (_idx, (call_id, tool_name, args_str)) in sorted_calls {
@@ -230,6 +216,8 @@ impl AgentRunner {
                         id: call_id.clone(), tool_name: tool_name.clone(), success: res.success, output: res.content.clone(), duration_ms: duration,
                     }).await;
 
+                    executed_any_tool = true;
+
                     if tool_name == "complete_onboarding"
                         || (tool_name == "write_memory"
                             && final_args.get("path").and_then(|p| p.as_str()).map(|p| p.contains("user_profile")).unwrap_or(false))
@@ -240,6 +228,7 @@ impl AgentRunner {
                     res.content
                 } else {
                     had_tool_rejection = true;
+                    executed_any_tool = true;
                     let duration = tool_start.elapsed().as_millis() as u64;
                     let reject_msg = format!(
                         "Tool execution rejected by human operator. Reason: {}",
@@ -267,11 +256,17 @@ impl AgentRunner {
         }
 
         let mut synth_text = String::new();
-        if last_completed_text.trim().is_empty() || had_tool_rejection {
+        let needs_synthesis = last_completed_text.trim().is_empty()
+            || had_tool_rejection
+            || last_completed_text.trim().starts_with("<options");
+
+        if needs_synthesis {
             let synth_prompt = if had_tool_rejection {
                 "The requested tool execution was rejected by the operator or timed out. State clearly that the action was canceled, summarize what was stopped, and ask how the operator would like to proceed. Conclude with <options>.".to_string()
-            } else {
+            } else if executed_any_tool {
                 "All tool actions are finished. Provide your direct response to the operator summarizing what was done and conclude with <options>.".to_string()
+            } else {
+                "Provide your direct response to the operator and conclude with <options>.".to_string()
             };
             let mut final_messages = chat_messages.clone();
             final_messages.push(ChatMessageParam {
@@ -292,7 +287,7 @@ impl AgentRunner {
                         synth_text.push_str(&tok);
                         accumulated_full_response.push_str(&tok);
                         let _ = event_tx.send(AgentEvent::Token { content: tok }).await;
-                        if crate::agent::reasoning::arrest_repetition(&mut synth_text, &mut accumulated_full_response) {
+                        if crate::agent::reasoning::arrest_response_repetition(&mut synth_text, &mut accumulated_full_response) {
                             break;
                         }
                     }
@@ -301,7 +296,7 @@ impl AgentRunner {
             }
         }
 
-        let final_resp = if had_tool_rejection {
+        let mut final_resp = if had_tool_rejection {
             if !synth_text.trim().is_empty() { synth_text } else { "Action canceled. The tool execution was rejected by the operator.\n\n<options>\n<option>What would you like to do next?</option>\n</options>".to_string() }
         } else if !synth_text.trim().is_empty() {
             synth_text
@@ -310,6 +305,11 @@ impl AgentRunner {
         } else {
             accumulated_full_response
         };
+
+        if final_resp.trim().starts_with("<options") {
+            final_resp = format!("Here are your options:\n\n{}", final_resp.trim());
+        }
+
         let final_th = if !last_completed_thought.trim().is_empty() { last_completed_thought } else { accumulated_full_thought };
         Ok((final_resp, final_th))
     }

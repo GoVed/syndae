@@ -135,13 +135,14 @@ export const useChatState = ({
     }
   };
 
-  const handleSendPrompt = async (sessionId: string, prompt: string, mode: string) => {
+  const handleSendPrompt = async (sessionId: string, prompt: string, mode: string, images?: string[]) => {
     const optimisticMsg: ChatMessage = {
       id: `temp-${Date.now()}`,
       session_id: sessionId,
       role: 'user',
       content: prompt,
       thought: null,
+      images: images && images.length > 0 ? images : null,
       created_at: new Date().toISOString(),
     };
     setMessages(prev => [...prev, optimisticMsg]);
@@ -155,7 +156,12 @@ export const useChatState = ({
       const res = await fetch('/api/chat/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId, prompt, mode }),
+        body: JSON.stringify({
+          session_id: sessionId,
+          prompt,
+          mode,
+          images: images && images.length > 0 ? images : undefined,
+        }),
       });
       const data = await res.json();
       if (!data.success) {

@@ -40,7 +40,7 @@ export interface ChatViewProps {
     reason?: string
   ) => void;
   memoryFiles: MemoryFileNode[];
-  onSendPrompt: (sessionId: string, prompt: string, mode: string) => void;
+  onSendPrompt: (sessionId: string, prompt: string, mode: string, images?: string[]) => void;
   liveThought: string;
   liveStreamingText: string;
   liveToolExecutions: ToolExecutionCard[];

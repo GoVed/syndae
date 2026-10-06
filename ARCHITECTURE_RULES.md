@@ -35,3 +35,14 @@ The Syndae repository (`Syndae/`) is strictly a general-purpose AI Operating Sys
 ## Law 4: Code Cleanliness & Constraints
 - Maximum ~300-350 LOC per file. If a file grows, split cleanly into submodules.
 - 100% test coverage preserved across unit, UI, and integration test suites.
+
+## Law 5: Mandatory Pre-Commit Architecture Auditor Subagent
+Before ANY git commit is executed in this repository:
+1. **Mandatory Subagent Audit**: The primary agent MUST spawn an independent auditor subagent (`Architecture Auditor`) using `invoke_subagent`.
+2. **Diff Inspection**: The auditor subagent must inspect the exact staged changes (`git diff --staged` / `git diff --cached`) against Laws 1, 2, 3, and 4:
+   - **Zero Tool Leaks**: Verify that NO specific tool names (e.g. `send_message`, `send_sticker`, `translate`, `send_email`, `web_search`), tool protocols, or third-party client drivers have leaked into `src/agent/`, `src/router/`, or core harness modules.
+   - **Zero Procedural Heuristics**: Verify that NO language/dialect heuristics, contact parsers, regex intent detectors, or forced `tool_choice` hacks exist.
+   - **Pure ReAct Harness**: Verify Syndae remains a strictly generic ReAct harness (receives messages, passes MCP schemas, executes tool calls, returns tool results).
+   - **Code Standards**: Verify file size limits (~300-350 LOC) and ensure all tests pass (`cargo test`).
+3. **Formal Verdict**: The auditor subagent must deliver an explicit `VERDICT: PASS` or `VERDICT: FAIL` with line-by-line findings.
+4. **Hard Gate**: Commits are strictly BLOCKED on `VERDICT: FAIL`. The commit may only proceed after a clean `VERDICT: PASS`.
