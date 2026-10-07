@@ -6,18 +6,30 @@ export const resolveImageUrl = (img: string): string => {
   if (img.startsWith('data:')) {
     return img;
   }
+  const token = typeof window !== 'undefined' ? localStorage.getItem('syndae_access_key') : null;
+  const tokenParam = token ? `token=${encodeURIComponent(token)}` : '';
+
   if (
     img.startsWith('http://localhost') ||
     img.startsWith('http://127.0.0.1') ||
     img.startsWith('http://host.docker.internal') ||
     (typeof window !== 'undefined' && window.location.protocol === 'https:' && img.startsWith('http://'))
   ) {
-    return `/api/tools/media?url=${encodeURIComponent(img)}`;
+    const base = `/api/tools/media?url=${encodeURIComponent(img)}`;
+    return tokenParam ? `${base}&${tokenParam}` : base;
   }
-  if (img.startsWith('http://') || img.startsWith('https://') || img.startsWith('/')) {
+  if (img.startsWith('http://') || img.startsWith('https://')) {
     return img;
   }
-  return `/api/memory/raw?path=${encodeURIComponent(img)}`;
+  if (img.startsWith('/')) {
+    if (tokenParam && (img.startsWith('/api/memory/raw') || img.startsWith('/api/tools/media')) && !img.includes('token=')) {
+      const sep = img.includes('?') ? '&' : '?';
+      return `${img}${sep}${tokenParam}`;
+    }
+    return img;
+  }
+  const base = `/api/memory/raw?path=${encodeURIComponent(img)}`;
+  return tokenParam ? `${base}?${tokenParam}` : base;
 };
 
 export const isImageUrl = (url: string): boolean => {
