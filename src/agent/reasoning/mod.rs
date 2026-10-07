@@ -158,32 +158,38 @@ pub fn extract_thought_and_response(
     let mut final_response = raw_response.trim().to_string();
     let mut final_thought = raw_thought.trim().to_string();
 
-    // 1. Check for <think>...</think>, <thought>...</thought>, or <ifm|think> tags in final_response
-    for tag in ["think", "thought", "ifm|think"] {
+    // 1. Check for thinking tags (<think>, <thought>, <thinking>, <antthinking>, etc.) in final_response
+    for tag in ["think", "thought", "thinking", "antthinking", "antthought", "ifm|think"] {
         let open_tag = format!("<{}>", tag);
         let close_tag = format!("</{}>", tag);
-        while let Some(start) = final_response.find(&open_tag) {
-            if let Some(end) = final_response[start..].find(&close_tag) {
-                let end_idx = start + end;
-                let extracted = final_response[start + open_tag.len()..end_idx].trim();
-                if !extracted.is_empty() {
-                    if final_thought.is_empty() {
-                        final_thought = extracted.to_string();
-                    } else if !final_thought.contains(extracted) {
-                        final_thought.push_str("\n\n");
-                        final_thought.push_str(extracted);
+        loop {
+            let lower = final_response.to_lowercase();
+            if let Some(start) = lower.find(&open_tag) {
+                if let Some(end_rel) = lower[start..].find(&close_tag) {
+                    let end_idx = start + end_rel;
+                    let extracted = final_response[start + open_tag.len()..end_idx].trim();
+                    if !extracted.is_empty() {
+                        if final_thought.is_empty() {
+                            final_thought = extracted.to_string();
+                        } else if !final_thought.contains(extracted) {
+                            final_thought.push_str("\n\n");
+                            final_thought.push_str(extracted);
+                        }
                     }
+                    let before = &final_response[..start];
+                    let after = &final_response[end_idx + close_tag.len()..];
+                    final_response = format!("{}{}", before, after).trim().to_string();
+                } else {
+                    break;
                 }
-                let before = &final_response[..start];
-                let after = &final_response[end_idx + close_tag.len()..];
-                final_response = format!("{}{}", before, after).trim().to_string();
             } else {
                 break;
             }
         }
 
-        // Orphan closing tag </think>
-        if let Some(end_idx) = final_response.find(&close_tag) {
+        // Orphan closing tag
+        let lower = final_response.to_lowercase();
+        if let Some(end_idx) = lower.find(&close_tag) {
             let extracted = final_response[..end_idx].trim();
             if !extracted.is_empty() {
                 if final_thought.is_empty() {
@@ -278,6 +284,21 @@ pub fn extract_thought_and_response(
             }
         }
         search_from = open_idx + 1;
+    }
+
+    // Strip stray unhandled pseudo-tags (e.g. <parameter name="...">...</parameter>)
+    while let Some(start) = final_response.find("<parameter") {
+        if let Some(end_open) = final_response[start..].find('>') {
+            let tag_end = start + end_open + 1;
+            if let Some(close) = final_response[tag_end..].find("</parameter>") {
+                let close_end = tag_end + close + "</parameter>".len();
+                final_response = format!("{}{}", &final_response[..start], &final_response[close_end..]).trim().to_string();
+            } else {
+                final_response = format!("{}{}", &final_response[..start], &final_response[tag_end..]).trim().to_string();
+            }
+        } else {
+            break;
+        }
     }
 
     // Strip any stray 'tags.' or 'tags:' artifacts

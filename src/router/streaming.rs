@@ -26,11 +26,40 @@ enum ToolTagFormat {
 }
 
 const KNOWN_TAGS: &[&str] = &[
-    "<think>", "</think>", "<thought>", "</thought>", "<ifm|think>", "</ifm|think>",
+    "<think>", "</think>", "<thought>", "</thought>", "<thinking>", "</thinking>",
+    "<antthinking>", "</antthinking>", "<antthought>", "</antthought>",
+    "<ifm|think>", "</ifm|think>",
     "<ifm|tool_calls>", "</ifm|tool_calls>", "<ifm|tool_call>", "</ifm|tool_call>",
     "<function_calls>", "</function_calls>", "<tool_calls>", "</tool_calls>",
     "<tool_call>", "</tool_call>", "<function=", "</function>",
 ];
+
+const THINK_OPEN_TAGS: &[&str] = &[
+    "<think>", "<thought>", "<thinking>", "<antthinking>", "<antthought>", "<ifm|think>",
+];
+const THINK_CLOSE_TAGS: &[&str] = &[
+    "</think>", "</thought>", "</thinking>", "</antthinking>", "</antthought>", "</ifm|think>",
+];
+
+fn match_think_open(s: &str) -> Option<usize> {
+    let lower = s.to_ascii_lowercase();
+    THINK_OPEN_TAGS.iter().find(|t| lower.starts_with(*t)).map(|t| t.len())
+}
+
+fn match_think_close(s: &str) -> Option<usize> {
+    let lower = s.to_ascii_lowercase();
+    THINK_CLOSE_TAGS.iter().find(|t| lower.starts_with(*t)).map(|t| t.len())
+}
+
+fn matches_partial_tag(s: &str) -> bool {
+    let lower = s.to_ascii_lowercase();
+    KNOWN_TAGS.iter().any(|t| t.starts_with(&lower))
+}
+
+fn matches_partial_think_close(s: &str) -> bool {
+    let lower = s.to_ascii_lowercase();
+    THINK_CLOSE_TAGS.iter().any(|t| t.starts_with(&lower))
+}
 
 /// Stateful parser to extract thoughts and native XML/JSON tool calls during token streaming
 pub struct StreamTagParser {
@@ -128,11 +157,11 @@ impl StreamTagParser {
                         self.pending.drain(..open_idx);
                     }
 
-                    if let Some(tag) = ["</think>", "</thought>", "</ifm|think>"].iter().find(|t| self.pending.starts_with(**t)) {
-                        self.pending.drain(..tag.len());
+                    if let Some(len) = match_think_close(&self.pending) {
+                        self.pending.drain(..len);
                         self.inside_think = false;
                         continue;
-                    } else if ["</think>", "</thought>", "</ifm|think>"].iter().any(|t| t.starts_with(&self.pending)) {
+                    } else if matches_partial_think_close(&self.pending) {
                         break;
                     } else {
                         results.push(StreamChunk::Thought("<".to_string()));
@@ -155,8 +184,8 @@ impl StreamTagParser {
                     self.pending.drain(..open_idx);
                 }
 
-                if let Some(tag) = ["<think>", "<thought>", "<ifm|think>"].iter().find(|t| self.pending.starts_with(**t)) {
-                    self.pending.drain(..tag.len());
+                if let Some(len) = match_think_open(&self.pending) {
+                    self.pending.drain(..len);
                     self.inside_think = true;
                     continue;
                 } else if self.pending.starts_with("<ifm|tool_calls>") {
@@ -178,10 +207,13 @@ impl StreamTagParser {
                     self.inside_tool_call = Some(ToolTagFormat::FunctionTag);
                     self.tool_buffer.push_str("<function=");
                     continue;
-                } else if let Some(tag) = ["</think>", "</thought>", "</ifm|think>", "</ifm|tool_calls>", "</ifm|tool_call>", "</function_calls>", "</tool_calls>", "</tool_call>", "</function>"].iter().find(|t| self.pending.starts_with(**t)) {
+                } else if let Some(len) = match_think_close(&self.pending) {
+                    self.pending.drain(..len);
+                    continue;
+                } else if let Some(tag) = ["</ifm|tool_calls>", "</ifm|tool_call>", "</function_calls>", "</tool_calls>", "</tool_call>", "</function>"].iter().find(|t| self.pending.starts_with(**t)) {
                     self.pending.drain(..tag.len());
                     continue;
-                } else if KNOWN_TAGS.iter().any(|t| t.starts_with(&self.pending)) {
+                } else if matches_partial_tag(&self.pending) {
                     break;
                 } else {
                     results.push(StreamChunk::Token("<".to_string()));
@@ -298,6 +330,13 @@ mod tests {
             StreamChunk::Thought("analyzing".into()),
             StreamChunk::Token("Hello ".into()),
             StreamChunk::Token("world!".into()),
+        ]);
+
+        let mut parser2 = StreamTagParser::new();
+        let c3 = parser2.process("<antThinking>deep reasoning</antThinking>Direct answer");
+        assert_eq!(c3, vec![
+            StreamChunk::Thought("deep reasoning".into()),
+            StreamChunk::Token("Direct answer".into()),
         ]);
     }
 }

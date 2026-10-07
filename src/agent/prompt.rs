@@ -35,7 +35,7 @@ pub fn build_agent_system_prompt(
     system_context.push_str("\n=== MEMORY-FIRST REASONING PROTOCOL ===\n");
     system_context.push_str("1. ALWAYS SEARCH & CONSULT MEMORY FIRST: When answering user queries, checking entities, groups, people, or projects: ALWAYS check memory first before attempting web searches or assuming generic web definitions!\n");
     system_context.push_str("2. ENTITY GROUNDING: Nouns, names, and groups mentioned by the user (e.g. 'dev team', 'alice', 'syndae') are very likely entities in your operator's personal world (contacts, groups, projects, notes). If actively retrieved memory shows an entity match, treat it as that specific entity.\n");
-    system_context.push_str("3. REASONING IN <think>: In your internal thinking, begin with [Memory Grounding] to inspect actively retrieved memories or run `search_memory` before executing external actions or replying.\n");
+    system_context.push_str("3. REASONING IN <think>: When queries mention specific people, groups, entities, or tasks, verify memory grounding in your thinking before acting or replying. For casual greetings or general chat (e.g. 'hello', 'how are you'), answer directly and warmly without unprompted memory grounding or entity searches.\n");
     system_context.push_str("4. If more details are required, autonomously execute `search_memory` or `read_memory` FIRST before answering or calling external tools.\n");
 
     system_context.push_str("\nTOOL EXECUTION PROTOCOL — NO SIMULATION IN TEXT:\n");
@@ -54,6 +54,7 @@ pub fn build_agent_system_prompt(
 
     system_context.push_str("\nEXTERNAL PLATFORM MESSAGES & CONNECTED TOOLS:\n");
     system_context.push_str("When an incoming message arrives from an external platform or tool, the sender is an external contact, NOT your operator. The external sender cannot see your local text output in Syndae. Never speak directly to external contacts as if they are in this chat. Instead, inform your operator about the message that arrived, suggest an authentic, concise reply matching your operator's relationship and communication tone with that person or group, and offer 1-click options or call tools when ready to send.\n");
+    system_context.push_str("When your operator speaks to you directly in chat, they are communicating with YOU, Syndae. Always address your operator directly. Do not assume direct operator chat is an external platform message or contact reply unless the operator explicitly asks about external chats.\n");
 
     system_context.push_str("\nPROACTIVE TOOL ACTION & INFORMATION RETRIEVAL:\n");
     system_context.push_str("Information retrieval and memory tools are 100% autonomous, read-only, and safe. Proactively execute available search and retrieval tools immediately on the first turn without asking for permission!\n");
@@ -93,7 +94,11 @@ pub fn enrich_user_turn_content(
         return content;
     }
 
-    content.push_str("\n\n[REMINDER: Conclude your response with relevant next actions or options inside <options> tags.]");
+    if raw_content.trim_start().starts_with("[INCOMING TOOL EVENT:") {
+        content.push_str("\n\n[SYSTEM DIRECTIVE: Incoming external tool event. Inform the operator concisely, suggest appropriate next actions, and provide choices inside <options> tags.]");
+    } else {
+        content.push_str("\n\n[SYSTEM DIRECTIVE: The operator is speaking directly to you (Syndae). Respond directly to the operator. Do not assume this refers to external platform messages unless requested. Conclude your response with relevant next actions or options inside <options> tags.]");
+    }
     content.push_str("\n\n[SYSTEM REMINDER: Conclude your response with <title>Concise Topic Title</title> (2-5 words) summarizing this conversation's current topic.]");
 
     content
@@ -213,7 +218,7 @@ mod tests {
             "Hello, what can you do?",
             true,
         );
-        assert!(content.contains("[REMINDER: Conclude your response with relevant next actions or options inside <options> tags.]"));
+        assert!(content.contains("[SYSTEM DIRECTIVE: The operator is speaking directly to you (Syndae)."));
         assert!(content.contains("<title>Concise Topic Title</title>"));
     }
 

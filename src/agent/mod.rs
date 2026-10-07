@@ -179,8 +179,9 @@ impl AgentRunner {
         let hist_len = history.len();
 
         for (idx, msg) in history.iter().enumerate() {
-            if msg.content.trim().is_empty()
-                && msg.tool_calls.as_deref().unwrap_or("").trim().is_empty()
+            if (msg.content.trim().is_empty()
+                && msg.tool_calls.as_deref().unwrap_or("").trim().is_empty())
+                || msg.content.contains("AI Engine Warming Up")
             {
                 continue;
             }

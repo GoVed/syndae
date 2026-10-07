@@ -401,3 +401,15 @@ fn test_extract_thought_and_response_strips_pseudo_function_calls() {
     assert!(thought.unwrap().contains("translate("));
 }
 
+#[test]
+fn test_extract_thought_and_response_antthinking_and_parameters() {
+    let raw = "<antThinking>\n[Memory Grounding]\nChecking past messages\n</antThinking>\n\n<parameter name=\"target_lang\">english</parameter>\n\nHello operator!\n\n<options>\n<option>Option 1</option>\n</options>";
+    let (resp, thought) = super::reasoning::extract_thought_and_response(raw, "");
+    assert!(!resp.contains("<antThinking>"));
+    assert!(!resp.contains("Memory Grounding"));
+    assert!(!resp.contains("<parameter"));
+    assert!(resp.contains("Hello operator!"));
+    assert!(thought.is_some());
+    assert!(thought.unwrap().contains("Memory Grounding"));
+}
+
