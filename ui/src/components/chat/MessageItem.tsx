@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Bot, User, MessageSquare, BrainCircuit, Sparkles, ChevronDown, ChevronRight, CornerDownRight, Maximize2, X, Download } from 'lucide-react';
 import { ChatMessage } from '../../types';
-import { extractThoughtAndContent, extractOptionsAndContent, parseToolEvent, renderMarkdown } from './helpers';
+import { extractThoughtAndContent, extractOptionsAndContent, parseToolEvent, renderMarkdown, resolveImageUrl } from './helpers';
 import { OptionsPills } from './OptionsPills';
 
 export interface MessageItemProps {
@@ -46,13 +46,6 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const cleanContent = rawCleanContent || (!isUser && options.length > 0 ? "I've processed your request. Please select a next action below:" : "");
 
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-
-  const resolveImageUrl = (img: string): string => {
-    if (img.startsWith('data:') || img.startsWith('http://') || img.startsWith('https://') || img.startsWith('/')) {
-      return img;
-    }
-    return `/api/memory/raw?path=${encodeURIComponent(img)}`;
-  };
 
   const parseImages = (imgs?: string | string[] | null): string[] => {
     if (!imgs) return [];
@@ -152,7 +145,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
       {/* Message Content */}
       {isToolEvent ? (
-        <div className="w-full max-w-full sm:max-w-3xl rounded-2xl p-4 text-xs leading-relaxed bg-gradient-to-r from-emerald-950/40 via-syndae-900 to-syndae-900 border border-emerald-500/35 shadow-md space-y-2.5 min-w-0 overflow-hidden">
+        <div
+          onClick={handleContentClick}
+          className="w-full max-w-full sm:max-w-3xl rounded-2xl p-4 text-xs leading-relaxed bg-gradient-to-r from-emerald-950/40 via-syndae-900 to-syndae-900 border border-emerald-500/35 shadow-md space-y-2.5 min-w-0 overflow-hidden"
+        >
           <div className="flex items-center justify-between text-[11px] font-mono text-emerald-300 border-b border-emerald-900/40 pb-1.5 gap-2">
             <span className="font-semibold flex items-center space-x-1 shrink-0">
               <span>Incoming {parsedToolEvent.protocol} Message</span>
@@ -166,6 +162,42 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 <span className="text-emerald-400 font-mono text-[10px] mr-1.5 font-semibold">Replying to:</span>
                 <span className="text-slate-200 italic">{parsedToolEvent.replyTo}</span>
               </div>
+            </div>
+          )}
+          {attachedImages.length > 0 && (
+            <div
+              className={`pt-1 grid gap-2.5 ${
+                attachedImages.length === 1
+                  ? 'grid-cols-1 max-w-md'
+                  : attachedImages.length === 2
+                  ? 'grid-cols-2 max-w-lg'
+                  : 'grid-cols-2 sm:grid-cols-3'
+              }`}
+            >
+              {attachedImages.map((img, idx) => {
+                const resolvedUrl = resolveImageUrl(img);
+                return (
+                  <div
+                    key={idx}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxImage(resolvedUrl);
+                    }}
+                    className="relative group cursor-pointer overflow-hidden rounded-xl border border-white/10 hover:border-emerald-500/50 bg-black/40 transition-all shadow-md hover:scale-[1.01]"
+                  >
+                    <img
+                      src={resolvedUrl}
+                      alt={`Attached image ${idx + 1}`}
+                      className="w-full max-h-72 object-cover rounded-xl"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white text-xs font-medium">
+                      <Maximize2 className="w-4 h-4" />
+                      <span>View</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
           <div className="text-slate-100 text-sm font-sans font-medium px-0.5 leading-normal break-words">

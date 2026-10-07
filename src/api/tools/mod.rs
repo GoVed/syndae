@@ -2,6 +2,7 @@ pub mod channels;
 pub mod discovery;
 pub mod inbound;
 pub mod inspect;
+pub mod media;
 pub mod servers;
 
 use axum::routing::{delete, get, post};
@@ -12,6 +13,7 @@ pub use channels::{get_channel_defaults, list_channels, update_channel_defaults,
 pub use discovery::{discover_local_tools, install_tool};
 pub use inbound::handle_inbound_tool_event;
 pub use inspect::inspect_tool;
+pub use media::handle_media_proxy;
 pub use servers::{
     add_server, list_servers, list_tools, remove_server, test_call_tool, update_policy,
 };
@@ -24,6 +26,7 @@ pub fn router() -> Router<AppState> {
         .route("/policy", post(update_policy))
         .route("/call", post(test_call_tool))
         .route("/trigger", post(handle_inbound_tool_event))
+        .route("/media", get(handle_media_proxy))
         .route("/discover", get(discover_local_tools))
         .route("/inspect", post(inspect_tool))
         .route("/install", post(install_tool))

@@ -240,28 +240,38 @@ pub async fn handle_inbound_tool_event(
         if names.is_empty() { String::new() } else { format!("\nMentions: {}{}", names.join(", "), if is_self { " [YOU WERE TAGGED]" } else { "" }) }
     }).unwrap_or_default();
 
+    let incoming_images = extract_field(&payload.payload, &["media_url", "image_url"])
+        .filter(|u| {
+            let lower = u.to_lowercase();
+            !lower.ends_with(".mp4") && !lower.ends_with(".mov") && !lower.ends_with(".webm")
+                && !lower.ends_with(".pdf") && !lower.ends_with(".mp3") && !lower.ends_with(".ogg")
+        })
+        .map(|u| vec![u.to_string()]);
+
+    let media_info = if incoming_images.is_some() {
+        let m_type = extract_field(&payload.payload, &["media_type", "type"]).unwrap_or("IMAGE");
+        format!("\nAttachment: [{}]", m_type.to_uppercase())
+    } else {
+        String::new()
+    };
+
     let turn_prompt = match payload.event_type.as_str() {
         "new_message" | "message_received" => format!(
-            "[INCOMING TOOL EVENT: {}]\nSender: {}\nChannel: {}{}\nReceived: {}{}\nMessage: \"{}\"",
-            payload.protocol.to_uppercase(), sender_display, channel_desc, reply_info, received_time, mentions_info, text
+            "[INCOMING TOOL EVENT: {}]\nSender: {}\nChannel: {}{}\nReceived: {}{}{}\nMessage: \"{}\"",
+            payload.protocol.to_uppercase(), sender_display, channel_desc, reply_info, received_time, mentions_info, media_info, text
         ),
         "reaction" => {
             let emoji = payload.payload.get("reaction").and_then(|v| v.as_str()).unwrap_or("");
             let target_text = payload.payload.get("target_message_text").and_then(|v| v.as_str());
             let target_author = payload.payload.get("target_sender_name").and_then(|v| v.as_str());
             let is_removed = payload.payload.get("is_removed").and_then(|v| v.as_bool()).unwrap_or(false);
-            let action_desc = if is_removed {
-                match (target_text, target_author) {
-                    (Some(t), Some(a)) => format!("Removed reaction from \"{t}\" (by {a})"),
-                    (Some(t), None) => format!("Removed reaction from \"{t}\""),
-                    _ => "Removed reaction".to_string(),
-                }
-            } else {
-                match (target_text, target_author) {
-                    (Some(t), Some(a)) => format!("Reacted {emoji} to \"{t}\" (by {a})"),
-                    (Some(t), None) => format!("Reacted {emoji} to \"{t}\""),
-                    _ => format!("Reacted {emoji}"),
-                }
+            let action_desc = match (is_removed, target_text, target_author) {
+                (true, Some(t), Some(a)) => format!("Removed reaction from \"{t}\" (by {a})"),
+                (true, Some(t), None) => format!("Removed reaction from \"{t}\""),
+                (true, _, _) => "Removed reaction".to_string(),
+                (false, Some(t), Some(a)) => format!("Reacted {emoji} to \"{t}\" (by {a})"),
+                (false, Some(t), None) => format!("Reacted {emoji} to \"{t}\""),
+                (false, _, _) => format!("Reacted {emoji}"),
             };
             format!(
                 "[INCOMING TOOL EVENT: {}]\nSender: {}\nChannel: {}\nReceived: {}\nEvent: Reaction\nAction: {}\nReaction: {}\nIs Removed: {}",
@@ -288,14 +298,6 @@ pub async fn handle_inbound_tool_event(
             let _ = ws_broadcast.send(msg.to_string());
         }
     });
-
-    let incoming_images = extract_field(&payload.payload, &["media_url", "image_url"])
-        .filter(|u| {
-            let lower = u.to_lowercase();
-            !lower.ends_with(".mp4") && !lower.ends_with(".mov") && !lower.ends_with(".webm")
-                && !lower.ends_with(".pdf") && !lower.ends_with(".mp3") && !lower.ends_with(".ogg")
-        })
-        .map(|u| vec![u.to_string()]);
 
     let (turn_id, position, is_immediate) = state
         .turn_queue
