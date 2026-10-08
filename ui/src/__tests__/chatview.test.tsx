@@ -421,7 +421,7 @@ Looking at your photos, I found 3 files:
     );
 
     expect(screen.getByText('Completed Immich Photos')).toBeInTheDocument();
-    expect(screen.getByText('View details (1)')).toBeInTheDocument();
+    expect(screen.getByText('View timeline (1)')).toBeInTheDocument();
   });
 });
 

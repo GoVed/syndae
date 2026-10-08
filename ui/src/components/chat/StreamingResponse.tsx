@@ -35,7 +35,12 @@ export const StreamingResponse: React.FC<StreamingResponseProps> = ({
         </span>
       </div>
 
-      {/* Smooth Thinking & Reasoning Bubble */}
+      {/* Persisted & Active Execution Timeline */}
+      {liveToolExecutions.length > 0 && (
+        <AggregatedToolActivity executions={liveToolExecutions} />
+      )}
+
+      {/* Smooth Thinking & Reasoning Bubble for active step */}
       {activeThought && (
         <div className="w-full max-w-3xl rounded-xl bg-purple-950/20 border border-purple-900/40 text-xs p-3 shadow-sm backdrop-blur-md transition-all duration-200 hover:border-purple-800/60">
           <button
@@ -70,11 +75,6 @@ export const StreamingResponse: React.FC<StreamingResponseProps> = ({
             </div>
           )}
         </div>
-      )}
-
-      {/* Aggregated Tool Activity (Single Sleek Bar for Users, Expandable for Details) */}
-      {liveToolExecutions.length > 0 && (
-        <AggregatedToolActivity executions={liveToolExecutions} />
       )}
 
       {/* Streaming Content */}

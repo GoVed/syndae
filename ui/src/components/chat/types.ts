@@ -24,6 +24,10 @@ export interface ToolExecutionCard {
   success?: boolean;
   status: 'running' | 'pending_approval' | 'approved' | 'rejected' | 'completed';
   ticket?: ApprovalTicket;
+  step?: number;
+  text?: string | null;
+  thought?: string | null;
+  duration_ms?: number;
 }
 
 export interface ChatViewProps {

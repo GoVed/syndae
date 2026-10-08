@@ -1,176 +1,23 @@
 import React, { useState } from 'react';
 import {
-  Search,
-  Globe,
   Brain,
-  MessageSquare,
-  Image as ImageIcon,
-  Terminal,
-  Wrench,
   CheckCircle2,
   XCircle,
   Clock,
   ChevronDown,
   ChevronRight,
   Code2,
-  Sparkles,
   Loader2,
 } from 'lucide-react';
 import { ToolExecutionCard } from './types';
+import { formatToolActivity, FormattedToolInfo } from './toolFormatter';
+
+export { formatToolActivity };
+export type { FormattedToolInfo };
 
 export interface AggregatedToolActivityProps {
   executions: ToolExecutionCard[];
   defaultExpanded?: boolean;
-}
-
-interface FormattedToolInfo {
-  friendlyName: string;
-  actionDescription: string;
-  summaryDetail?: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-export function formatToolActivity(toolName: string, args: any): FormattedToolInfo {
-  const safeArgs = args && typeof args === 'object' ? args : {};
-  const cleanName = (toolName || '').toLowerCase().trim();
-
-  if (cleanName === 'web_search') {
-    const q = safeArgs.query || safeArgs.q || '';
-    return {
-      friendlyName: 'Web Search',
-      actionDescription: q ? `Searching the web for "${q}"` : 'Searching the web...',
-      summaryDetail: q ? `Query: "${q}"` : undefined,
-      icon: Search,
-    };
-  }
-
-  if (cleanName === 'read_web_page' || cleanName === 'fetch_page' || cleanName === 'fetch_web_page') {
-    const u = safeArgs.url || safeArgs.uri || '';
-    let host = '';
-    try {
-      if (u) host = new URL(u).hostname.replace(/^www\./, '');
-    } catch {}
-    return {
-      friendlyName: 'Read Webpage',
-      actionDescription: host ? `Reading webpage on ${host}...` : 'Reading webpage...',
-      summaryDetail: u ? `URL: ${u}` : undefined,
-      icon: Globe,
-    };
-  }
-
-  if (cleanName === 'search_memory') {
-    const q = safeArgs.query || '';
-    return {
-      friendlyName: 'Search Memory',
-      actionDescription: q ? `Searching memory for "${q}"` : 'Searching personal memory...',
-      summaryDetail: q ? `Query: "${q}"` : undefined,
-      icon: Brain,
-    };
-  }
-
-  if (cleanName === 'read_memory') {
-    const p = (safeArgs.path || safeArgs.filepath || '').replace(/^(\/memory\/|memory\/)/, '');
-    return {
-      friendlyName: 'Read Memory',
-      actionDescription: p ? `Reviewing memory note (${p})...` : 'Consulting memory notes...',
-      summaryDetail: p ? `File: ${p}` : undefined,
-      icon: Brain,
-    };
-  }
-
-  if (cleanName === 'write_memory') {
-    const p = (safeArgs.path || safeArgs.filepath || '').replace(/^(\/memory\/|memory\/)/, '');
-    const s = safeArgs.section ? ` [${safeArgs.section}]` : '';
-    return {
-      friendlyName: 'Update Memory',
-      actionDescription: p ? `Updating memory note (${p}${s})...` : 'Saving memory note...',
-      summaryDetail: p ? `File: ${p}${s}` : undefined,
-      icon: Brain,
-    };
-  }
-
-  if (cleanName === 'send_message') {
-    const to = safeArgs.to || safeArgs.recipient || '';
-    return {
-      friendlyName: 'Send Message',
-      actionDescription: to ? `Preparing message for ${to}...` : 'Sending message...',
-      summaryDetail: to ? `Recipient: ${to}` : undefined,
-      icon: MessageSquare,
-    };
-  }
-
-  if (cleanName === 'send_image' || cleanName === 'send_gif' || cleanName === 'send_sticker') {
-    const to = safeArgs.to || '';
-    return {
-      friendlyName: cleanName === 'send_sticker' ? 'Send Sticker' : 'Send Image',
-      actionDescription: to ? `Sharing media with ${to}...` : 'Sending media...',
-      summaryDetail: to ? `Recipient: ${to}` : undefined,
-      icon: ImageIcon,
-    };
-  }
-
-  if (cleanName === 'send_reaction') {
-    const emoji = safeArgs.emoji || 'reaction';
-    const to = safeArgs.to || safeArgs.chat || '';
-    return {
-      friendlyName: 'Send Reaction',
-      actionDescription: to ? `Reacting with ${emoji} in ${to}...` : `Reacting with ${emoji}...`,
-      summaryDetail: emoji ? `Emoji: ${emoji}` : undefined,
-      icon: Sparkles,
-    };
-  }
-
-  if (cleanName === 'inspect_image') {
-    return {
-      friendlyName: 'Inspect Image',
-      actionDescription: 'Analyzing image details...',
-      icon: ImageIcon,
-    };
-  }
-
-  if (cleanName === 'translate') {
-    const lang = safeArgs.target_lang || safeArgs.language || '';
-    return {
-      friendlyName: 'Translate',
-      actionDescription: lang ? `Translating into ${lang}...` : 'Translating content...',
-      summaryDetail: lang ? `Language: ${lang}` : undefined,
-      icon: Globe,
-    };
-  }
-
-  if (cleanName === 'exec_container_command') {
-    const cmd = (safeArgs.command || '').trim();
-    const briefCmd = cmd ? cmd.split('\n')[0].substring(0, 45) : '';
-    return {
-      friendlyName: 'System Command',
-      actionDescription: briefCmd ? `Running: ${briefCmd}...` : 'Executing command...',
-      summaryDetail: briefCmd,
-      icon: Terminal,
-    };
-  }
-
-  if (cleanName.startsWith('immich_')) {
-    const action = cleanName.replace('immich_', '').replace(/_/g, ' ');
-    return {
-      friendlyName: 'Immich Photos',
-      actionDescription: `Immich photos: ${action}...`,
-      summaryDetail: `Action: ${action}`,
-      icon: ImageIcon,
-    };
-  }
-
-  // Fallback for any other custom tool
-  const readable = toolName
-    .replace(/^tool_|^mcp_/, '')
-    .split('_')
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-
-  return {
-    friendlyName: readable,
-    actionDescription: `Running ${readable}...`,
-    icon: Wrench,
-  };
 }
 
 export const AggregatedToolActivity: React.FC<AggregatedToolActivityProps> = ({
@@ -198,27 +45,23 @@ export const AggregatedToolActivity: React.FC<AggregatedToolActivityProps> = ({
 
   // Compute summary line for collapsed view
   let headerTitle = '';
-  let ActiveIcon: React.ComponentType<{ className?: string }> = Wrench;
 
   if (runningExec) {
     const info = formatToolActivity(runningExec.tool_name, runningExec.arguments);
-    headerTitle = info.actionDescription;
-    ActiveIcon = info.icon;
+    const stepLabel = runningExec.step ? `Step ${runningExec.step}: ` : '';
+    headerTitle = `${stepLabel}${info.actionDescription}`;
   } else if (isAllDone) {
     if (executions.length === 1) {
       const info = formatToolActivity(executions[0].tool_name, executions[0].arguments);
       headerTitle = `Completed ${info.friendlyName}`;
-      ActiveIcon = info.icon;
     } else {
       const uniqueNames = Array.from(
         new Set(executions.map(e => formatToolActivity(e.tool_name, e.arguments).friendlyName))
       );
       headerTitle = `Completed ${executions.length} actions (${uniqueNames.join(', ')})`;
-      ActiveIcon = CheckCircle2;
     }
   } else {
     headerTitle = `Actions in progress (${completedCount}/${executions.length} completed)`;
-    ActiveIcon = Wrench;
   }
 
   return (
@@ -262,7 +105,7 @@ export const AggregatedToolActivity: React.FC<AggregatedToolActivityProps> = ({
         {/* Expand / Collapse Control */}
         <div className="flex items-center space-x-1.5 shrink-0 text-slate-400 group-hover:text-slate-200 text-xs transition-colors">
           <span className="text-[11px] text-slate-400 font-normal hidden sm:inline">
-            {isExpanded ? 'Hide details' : `View details (${executions.length})`}
+            {isExpanded ? 'Hide timeline' : `View timeline (${executions.length})`}
           </span>
           <span className="text-[11px] text-slate-400 font-normal sm:hidden">
             {isExpanded ? 'Hide' : `${executions.length}`}
@@ -275,19 +118,24 @@ export const AggregatedToolActivity: React.FC<AggregatedToolActivityProps> = ({
         </div>
       </div>
 
-      {/* Expandable Step-by-Step Timeline (For detailed inspection) */}
+      {/* Expandable Step-by-Step Chronological Timeline */}
       {isExpanded && (
-        <div className="border-t border-syndae-800/80 p-3 sm:p-4 space-y-3 bg-syndae-950/80">
-          <div className="relative pl-3 space-y-3 before:absolute before:left-1 before:top-2 before:bottom-2 before:w-0.5 before:bg-syndae-800">
+        <div className="border-t border-syndae-800/80 p-3 sm:p-4 space-y-3.5 bg-syndae-950/80">
+          <div className="relative pl-3 space-y-4 before:absolute before:left-1 before:top-2.5 before:bottom-2 before:w-0.5 before:bg-syndae-800">
             {executions.map((exec, idx) => {
               const info = formatToolActivity(exec.tool_name, exec.arguments);
               const StepIcon = info.icon;
               const isRawOpen = openRawParams[exec.id] || false;
+              const durationText = exec.duration_ms
+                ? exec.duration_ms < 1000
+                  ? `${exec.duration_ms}ms`
+                  : `${(exec.duration_ms / 1000).toFixed(1)}s`
+                : null;
 
               return (
                 <div key={exec.id || idx} className="relative pl-4 text-xs">
                   {/* Timeline bullet */}
-                  <div className="absolute -left-3.5 top-0.5 flex items-center justify-center w-5 h-5 rounded-full bg-syndae-900 border border-syndae-750">
+                  <div className="absolute -left-3.5 top-1 flex items-center justify-center w-5 h-5 rounded-full bg-syndae-900 border border-syndae-750">
                     {exec.status === 'running' ? (
                       <Loader2 className="w-3 h-3 text-cyan-400 smooth-spin-ring" />
                     ) : exec.status === 'pending_approval' ? (
@@ -299,80 +147,114 @@ export const AggregatedToolActivity: React.FC<AggregatedToolActivityProps> = ({
                     )}
                   </div>
 
-                  {/* Step Summary Box */}
-                  <div className="p-2.5 rounded-lg bg-syndae-900/90 border border-syndae-800/90 space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center space-x-2 min-w-0">
-                        <StepIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="font-semibold text-slate-100 truncate">
-                          {info.friendlyName}
-                        </span>
-                        <code className="text-[10px] font-mono text-slate-500 bg-syndae-950 px-1.5 py-0.5 rounded border border-white/5">
-                          {exec.tool_name}
-                        </code>
-                      </div>
-
-                      {/* Status Tag */}
-                      <span
-                        className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 ${
-                          exec.status === 'running'
-                            ? 'bg-cyan-950/70 text-cyan-300 border border-cyan-500/30 animate-pulse'
-                            : exec.status === 'pending_approval'
-                            ? 'bg-amber-950/70 text-amber-300 border border-amber-500/30'
-                            : exec.status === 'rejected'
-                            ? 'bg-rose-950/70 text-rose-300 border border-rose-500/30'
-                            : 'bg-emerald-950/70 text-emerald-300 border border-emerald-500/30'
-                        }`}
-                      >
-                        {exec.status === 'running'
-                          ? 'In progress'
-                          : exec.status === 'pending_approval'
-                          ? 'Pending approval'
-                          : exec.status === 'rejected'
-                          ? 'Rejected'
-                          : 'Completed'}
+                  <div className="space-y-2">
+                    {/* Step Index & Duration */}
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                      <span className="font-semibold text-slate-300">
+                        Step {exec.step || idx + 1}
                       </span>
+                      {durationText && (
+                        <span className="text-[10px] font-mono text-slate-500">
+                          {durationText}
+                        </span>
+                      )}
                     </div>
 
-                    {info.summaryDetail && (
-                      <p className="text-[11.5px] text-slate-300 break-words pl-5">
-                        {info.summaryDetail}
-                      </p>
+                    {/* Step Reasoning (Thought) */}
+                    {exec.thought && (
+                      <div className="p-2.5 rounded-lg bg-purple-950/20 border border-purple-900/40 text-purple-200/90 text-[11px] leading-relaxed">
+                        <div className="flex items-center gap-1.5 font-medium text-purple-300 text-[10.5px] mb-1">
+                          <Brain className="w-3 h-3 text-purple-400" />
+                          <span>Step Reasoning</span>
+                        </div>
+                        <div className="whitespace-pre-wrap font-sans text-purple-200/80 pl-4.5 break-words">
+                          {exec.thought}
+                        </div>
+                      </div>
                     )}
 
-                    {/* Collapsible Raw Payload for Debugging */}
-                    <div className="pt-1 pl-5">
-                      <button
-                        type="button"
-                        onClick={(e) => toggleRawParams(exec.id, e)}
-                        className="inline-flex items-center space-x-1 text-[10.5px] text-slate-400 hover:text-cyan-300 transition-colors select-none"
-                      >
-                        <Code2 className="w-3 h-3" />
-                        <span>{isRawOpen ? 'Hide raw parameters & output' : 'Show raw parameters & output'}</span>
-                      </button>
+                    {/* Step Conversational Output / Statement mid-tool use */}
+                    {exec.text && (
+                      <div className="px-3 py-1.5 rounded-lg bg-syndae-850/80 border border-syndae-750/70 text-slate-200 text-xs leading-relaxed font-sans break-words">
+                        {exec.text}
+                      </div>
+                    )}
 
-                      {isRawOpen && (
-                        <div className="mt-2 space-y-2 font-mono text-[10.5px]">
-                          <div>
-                            <div className="text-[9.5px] uppercase tracking-wider text-slate-500 font-semibold mb-1">
-                              Parameters
-                            </div>
-                            <pre className="p-2 rounded bg-syndae-950 border border-syndae-800 text-slate-300 overflow-x-auto max-h-36">
-                              {JSON.stringify(exec.arguments, null, 2)}
-                            </pre>
-                          </div>
-                          {exec.output && (
+                    {/* Tool Action Card */}
+                    <div className="p-2.5 rounded-lg bg-syndae-900/90 border border-syndae-800/90 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <StepIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="font-semibold text-slate-100 truncate">
+                            {info.friendlyName}
+                          </span>
+                          <code className="text-[10px] font-mono text-slate-500 bg-syndae-950 px-1.5 py-0.5 rounded border border-white/5">
+                            {exec.tool_name}
+                          </code>
+                        </div>
+
+                        {/* Status Tag */}
+                        <span
+                          className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 ${
+                            exec.status === 'running'
+                              ? 'bg-cyan-950/70 text-cyan-300 border border-cyan-500/30 animate-pulse'
+                              : exec.status === 'pending_approval'
+                              ? 'bg-amber-950/70 text-amber-300 border border-amber-500/30'
+                              : exec.status === 'rejected'
+                              ? 'bg-rose-950/70 text-rose-300 border border-rose-500/30'
+                              : 'bg-emerald-950/70 text-emerald-300 border border-emerald-500/30'
+                          }`}
+                        >
+                          {exec.status === 'running'
+                            ? 'In progress'
+                            : exec.status === 'pending_approval'
+                            ? 'Pending approval'
+                            : exec.status === 'rejected'
+                            ? 'Rejected'
+                            : 'Completed'}
+                        </span>
+                      </div>
+
+                      {info.summaryDetail && (
+                        <p className="text-[11.5px] text-slate-300 break-words pl-5">
+                          {info.summaryDetail}
+                        </p>
+                      )}
+
+                      {/* Collapsible Raw Payload for Debugging */}
+                      <div className="pt-1 pl-5">
+                        <button
+                          type="button"
+                          onClick={(e) => toggleRawParams(exec.id, e)}
+                          className="inline-flex items-center space-x-1 text-[10.5px] text-slate-400 hover:text-cyan-300 transition-colors select-none"
+                        >
+                          <Code2 className="w-3 h-3" />
+                          <span>{isRawOpen ? 'Hide raw parameters & output' : 'Show raw parameters & output'}</span>
+                        </button>
+
+                        {isRawOpen && (
+                          <div className="mt-2 space-y-2 font-mono text-[10.5px]">
                             <div>
                               <div className="text-[9.5px] uppercase tracking-wider text-slate-500 font-semibold mb-1">
-                                Output
+                                Parameters
                               </div>
-                              <pre className="p-2 rounded bg-syndae-950 border border-syndae-800 text-emerald-300 overflow-x-auto max-h-36">
-                                {exec.output}
+                              <pre className="p-2 rounded bg-syndae-950 border border-syndae-800 text-slate-300 overflow-x-auto max-h-36">
+                                {JSON.stringify(exec.arguments, null, 2)}
                               </pre>
                             </div>
-                          )}
-                        </div>
-                      )}
+                            {exec.output && (
+                              <div>
+                                <div className="text-[9.5px] uppercase tracking-wider text-slate-500 font-semibold mb-1">
+                                  Output
+                                </div>
+                                <pre className="p-2 rounded bg-syndae-950 border border-syndae-800 text-emerald-300 overflow-x-auto max-h-36">
+                                  {exec.output}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

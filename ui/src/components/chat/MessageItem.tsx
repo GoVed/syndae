@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Bot, User, MessageSquare, BrainCircuit, Sparkles, ChevronDown, ChevronRight, CornerDownRight, Maximize2, X, Download } from 'lucide-react';
 import { ChatMessage } from '../../types';
 import { extractThoughtAndContent, extractOptionsAndContent, parseToolEvent, renderMarkdown, resolveImageUrl } from './helpers';
+import { buildTimelineSteps } from './timelineBuilder';
 import { OptionsPills } from './OptionsPills';
 import { AggregatedToolActivity } from './AggregatedToolActivity';
 import { ToolExecutionCard } from './types';
@@ -41,13 +42,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     ? { thought: null, content: message.content }
     : extractThoughtAndContent(message.content, message.thought);
 
-  const { content: rawCleanContent, options } = isUser
-    ? { content: cleanThoughtContent, options: [] }
-    : extractOptionsAndContent(cleanThoughtContent);
-
-  const cleanContent = rawCleanContent || (!isUser && options.length > 0 ? "I've processed your request. Please select a next action below:" : "");
-
-  const toolExecutions: ToolExecutionCard[] = React.useMemo(() => {
+  const rawToolExecutions: ToolExecutionCard[] = React.useMemo(() => {
     if (!message.tool_calls) return [];
     try {
       const parsed = typeof message.tool_calls === 'string' ? JSON.parse(message.tool_calls) : message.tool_calls;
@@ -56,6 +51,23 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       return [];
     }
   }, [message.tool_calls]);
+
+  const { timelineExecutions, finalAnswerContent, finalAnswerThought } = React.useMemo(() => {
+    if (isUser) {
+      return {
+        timelineExecutions: [],
+        finalAnswerContent: cleanThoughtContent,
+        finalAnswerThought: null,
+      };
+    }
+    return buildTimelineSteps(rawToolExecutions, cleanThoughtContent, thought);
+  }, [isUser, rawToolExecutions, cleanThoughtContent, thought]);
+
+  const { content: rawCleanContent, options } = isUser
+    ? { content: cleanThoughtContent, options: [] }
+    : extractOptionsAndContent(finalAnswerContent);
+
+  const cleanContent = rawCleanContent || (!isUser && options.length > 0 ? "I've processed your request. Please select a next action below:" : "");
 
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
@@ -137,7 +149,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       </div>
 
       {/* Collapsible Thought / Reasoning Trace Block */}
-      {thought && (
+      {(timelineExecutions.length === 0 ? thought : finalAnswerThought) && (
         <details className="w-full max-w-3xl mb-2.5 rounded-xl bg-purple-950/20 border border-purple-900/40 text-xs p-3 shadow-sm transition-all duration-200 group min-w-0 overflow-hidden hover:border-purple-800/60">
           <summary className="flex items-center justify-between w-full text-left text-purple-300 text-xs font-semibold select-none hover:text-purple-200 transition-colors py-0.5 px-1 cursor-pointer list-none">
             <div className="flex items-center space-x-2">
@@ -150,15 +162,15 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             <ChevronDown className="w-3.5 h-3.5 text-purple-400 group-open:rotate-180 transition-transform duration-200" />
           </summary>
           <div className="whitespace-pre-wrap text-purple-200/90 leading-relaxed max-h-56 overflow-y-auto pt-2.5 mt-2 border-t border-purple-900/30 text-xs break-words bg-syndae-950/80 p-2.5 rounded-lg font-mono">
-            {thought}
+            {timelineExecutions.length === 0 ? thought : finalAnswerThought}
           </div>
         </details>
       )}
 
-      {/* Persisted Tool Activity from Multi-Step Turns */}
-      {toolExecutions.length > 0 && (
+      {/* Persisted Step-by-Step Execution Timeline */}
+      {timelineExecutions.length > 0 && (
         <div className="w-full max-w-3xl mb-2.5">
-          <AggregatedToolActivity executions={toolExecutions} />
+          <AggregatedToolActivity executions={timelineExecutions} />
         </div>
       )}
 

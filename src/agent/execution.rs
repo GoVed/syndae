@@ -238,6 +238,9 @@ impl AgentRunner {
                     executed_tools_history.push(json!({
                         "id": call_id, "tool_name": tool_name, "arguments": final_args,
                         "status": "completed", "output": res.content, "success": res.success,
+                        "duration_ms": duration, "step": iteration,
+                        "text": if !current_turn_text.trim().is_empty() { Some(current_turn_text.clone()) } else { None },
+                        "thought": if !current_turn_thought.trim().is_empty() { Some(current_turn_thought.clone()) } else { None },
                     }));
                     res.content
                 } else {
@@ -257,6 +260,9 @@ impl AgentRunner {
                     executed_tools_history.push(json!({
                         "id": call_id, "tool_name": tool_name, "arguments": parsed_args,
                         "status": "rejected", "output": reject_msg, "success": false,
+                        "duration_ms": duration, "step": iteration,
+                        "text": if !current_turn_text.trim().is_empty() { Some(current_turn_text.clone()) } else { None },
+                        "thought": if !current_turn_thought.trim().is_empty() { Some(current_turn_thought.clone()) } else { None },
                     }));
                     reject_msg
                 };
@@ -320,21 +326,15 @@ impl AgentRunner {
         }
 
         let mut final_resp = if had_tool_rejection {
-            if !synth_text.trim().is_empty() {
-                synth_text
-            } else {
+            if !synth_text.trim().is_empty() { synth_text } else {
                 "Action canceled. The tool execution was rejected by the operator.\n\n<options>\n<option>What would you like to do next?</option>\n</options>".to_string()
-            }
-        } else if !accumulated_full_response.trim().is_empty() {
-            if last_completed_text.trim().starts_with("<options") && !synth_text.trim().is_empty() {
-                synth_text
-            } else {
-                accumulated_full_response
             }
         } else if !synth_text.trim().is_empty() {
             synth_text
         } else if !last_completed_text.trim().is_empty() {
             last_completed_text
+        } else if !accumulated_full_response.trim().is_empty() {
+            accumulated_full_response
         } else if executed_any_tool {
             "I have completed the requested actions. Please let me know how you would like to proceed.\n\n<options>\n<option>Show details of actions performed</option>\n<option>What would you like to do next?</option>\n</options>".to_string()
         } else if !last_completed_thought.trim().is_empty() || !accumulated_full_thought.trim().is_empty() {

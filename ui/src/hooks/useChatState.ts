@@ -28,6 +28,10 @@ export const useChatState = ({
 
   const activeSessionRef = useRef<ChatSession | null>(null);
   activeSessionRef.current = activeSession;
+  const liveStreamingTextRef = useRef('');
+  liveStreamingTextRef.current = liveStreamingText;
+  const liveThoughtRef = useRef('');
+  liveThoughtRef.current = liveThought;
 
   const loadMessages = useCallback(async (sessionId: string) => {
     try {
@@ -254,6 +258,10 @@ export const useChatState = ({
     } else if (evt.type === 'queue_started') {
       setIsStreaming(true);
       setLiveStreamingText(prev => (prev.startsWith('⏳ Queued in GPU scheduler') ? '' : prev));
+      if (liveToolExecutions.length > 0) {
+        setLiveStreamingText('');
+        setLiveThought('');
+      }
       if (targetSessionId) {
         loadMessages(targetSessionId);
       }
@@ -264,6 +272,8 @@ export const useChatState = ({
       setIsStreaming(true);
       setLiveStreamingText(prev => prev + (evt.content || ''));
     } else if (evt.type === 'tool_call_started') {
+      const stepText = liveStreamingTextRef.current.trim();
+      const stepThought = liveThoughtRef.current.trim();
       setLiveToolExecutions(prev => [
         ...prev,
         {
@@ -271,13 +281,16 @@ export const useChatState = ({
           tool_name: evt.tool_name,
           arguments: evt.arguments,
           status: 'running',
+          step: prev.length + 1,
+          text: stepText || null,
+          thought: stepThought || null,
         },
       ]);
     } else if (evt.type === 'tool_completed') {
       setLiveToolExecutions(prev =>
         prev.map(item =>
           item.id === evt.id
-            ? { ...item, status: 'completed', output: evt.output, success: evt.success }
+            ? { ...item, status: 'completed', output: evt.output, success: evt.success, duration_ms: evt.duration_ms }
             : item
         )
       );
