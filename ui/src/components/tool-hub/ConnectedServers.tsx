@@ -1,5 +1,5 @@
 import React from 'react';
-import { Server, Zap, Trash2 } from 'lucide-react';
+import { Server, Zap, Trash2, ExternalLink } from 'lucide-react';
 import { McpServerRecord } from '../../types';
 
 export interface ConnectedServersProps {
@@ -38,6 +38,9 @@ export const ConnectedServers: React.FC<ConnectedServersProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {servers.map(s => {
+          const webUrl = s.url && s.transport_type === 'http'
+            ? s.url.replace(/\/mcp\/?$/, '').replace('host.docker.internal', typeof window !== 'undefined' ? window.location.hostname : 'localhost')
+            : null;
           return (
             <div
               key={s.id}
@@ -63,9 +66,23 @@ export const ConnectedServers: React.FC<ConnectedServersProps> = ({
               </div>
 
               <div className="flex items-center justify-between pt-1 border-t border-syndae-800/60">
-                <span className="text-[10px] text-slate-500">
-                  Daemon Active
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] text-slate-500">
+                    Daemon Active
+                  </span>
+                  {webUrl && (
+                    <a
+                      href={webUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-1.5 py-0.5 rounded bg-syndae-800/80 hover:bg-cyan-950/80 border border-syndae-700/60 hover:border-cyan-600/60 text-cyan-400 hover:text-cyan-300 text-[10px] font-bold flex items-center space-x-1 transition-colors"
+                      title={`Open ${s.name} Web Dashboard`}
+                    >
+                      <span>Dashboard</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => onRemoveServer(s.id)}
