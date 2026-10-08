@@ -362,6 +362,68 @@ OPERATING DIRECTIVES:
     expect(expandedImg).toBeInTheDocument();
     expect(screen.getByText('Open / Download')).toBeInTheDocument();
   });
+
+  it('extractThoughtAndContent preserves conversational prefixes and bullets in content', () => {
+    const raw = `Let me try with the local file path:
+
+Looking at your photos, I found 3 files:
+- sunset.jpg
+- dog.jpg
+
+<options>
+<option>Option 1</option>
+</options>`;
+
+    const { thought, content } = extractThoughtAndContent(raw);
+    expect(thought).toBeNull();
+    expect(content).toContain('Let me try with the local file path:');
+    expect(content).toContain('Looking at your photos');
+    expect(content).toContain('- sunset.jpg');
+  });
+
+  it('renders completed tool executions when message.tool_calls is present', async () => {
+    const msgWithTools: ChatMessage = {
+      id: 'msg-with-tools',
+      session_id: 'test-session-1',
+      role: 'assistant',
+      content: 'I have finished searching.',
+      thought: null,
+      tool_calls: JSON.stringify([
+        {
+          id: 'call_123',
+          tool_name: 'immich_search',
+          arguments: { query: 'cats' },
+          status: 'completed',
+          output: 'Found 2 cats',
+          success: true,
+        },
+      ]),
+      created_at: new Date().toISOString(),
+    };
+
+    render(
+      <ChatView
+        sessions={[mockSession]}
+        activeSession={mockSession}
+        onSelectSession={() => {}}
+        onCreateSession={() => {}}
+        onDeleteSession={() => {}}
+        pendingTickets={[]}
+        onResolveTicket={() => {}}
+        memoryFiles={[]}
+        onSendPrompt={() => {}}
+        liveThought=""
+        liveStreamingText=""
+        liveToolExecutions={[]}
+        isStreaming={false}
+        messages={[msgWithTools]}
+      />
+    );
+
+    expect(screen.getByText('Completed Immich Photos')).toBeInTheDocument();
+    expect(screen.getByText('View details (1)')).toBeInTheDocument();
+  });
 });
+
 
 

@@ -23,11 +23,12 @@ impl AgentRunner {
         available_tools: Vec<ToolParam>,
         is_mission_mode: bool,
         event_tx: &mpsc::Sender<AgentEvent>,
-    ) -> Result<(String, String)> {
+    ) -> Result<(String, String, Option<String>)> {
         let max_iterations = if is_mission_mode { 15 } else { 10 };
         let mut iteration = 0;
         let (mut accumulated_full_response, mut accumulated_full_thought) = (String::new(), String::new());
         let (mut last_completed_text, mut last_completed_thought) = (String::new(), String::new());
+        let mut executed_tools_history: Vec<Value> = Vec::new();
 
         let tools_overhead = estimate_tools_tokens(&available_tools);
         let context_limit = if model_cfg.context_length > 0 { model_cfg.context_length as usize } else { 16384 };
@@ -183,6 +184,15 @@ impl AgentRunner {
                 images: None,
             });
 
+            if !current_turn_text.trim().is_empty() && !accumulated_full_response.ends_with("\n\n") {
+                let sep = if accumulated_full_response.ends_with('\n') { "\n" } else { "\n\n" };
+                accumulated_full_response.push_str(sep);
+                let _ = event_tx.send(AgentEvent::Token { content: sep.to_string() }).await;
+            }
+            if !current_turn_thought.trim().is_empty() && !accumulated_full_thought.ends_with("\n\n") {
+                accumulated_full_thought.push_str(if accumulated_full_thought.ends_with('\n') { "\n" } else { "\n\n" });
+            }
+
             for (_idx, (call_id, tool_name, args_str)) in sorted_calls {
                 let parsed_args: Value = serde_json::from_str(&args_str).unwrap_or_else(|_| json!({}));
                 let effective_args_str = args_str.clone();
@@ -225,6 +235,10 @@ impl AgentRunner {
                         let _ = self.db.set_setting("onboarding_completed", "true").await;
                         let _ = event_tx.send(AgentEvent::OnboardingCompleted).await;
                     }
+                    executed_tools_history.push(json!({
+                        "id": call_id, "tool_name": tool_name, "arguments": final_args,
+                        "status": "completed", "output": res.content, "success": res.success,
+                    }));
                     res.content
                 } else {
                     had_tool_rejection = true;
@@ -240,6 +254,10 @@ impl AgentRunner {
                     let _ = event_tx.send(AgentEvent::ToolCompleted {
                         id: call_id.clone(), tool_name: tool_name.clone(), success: false, output: reject_msg.clone(), duration_ms: duration,
                     }).await;
+                    executed_tools_history.push(json!({
+                        "id": call_id, "tool_name": tool_name, "arguments": parsed_args,
+                        "status": "rejected", "output": reject_msg, "success": false,
+                    }));
                     reject_msg
                 };
 
@@ -268,6 +286,11 @@ impl AgentRunner {
             } else {
                 "Provide your direct response to the operator and conclude with <options>.".to_string()
             };
+            if !accumulated_full_response.trim().is_empty() && !accumulated_full_response.ends_with("\n\n") {
+                let sep = if accumulated_full_response.ends_with('\n') { "\n" } else { "\n\n" };
+                accumulated_full_response.push_str(sep);
+                let _ = event_tx.send(AgentEvent::Token { content: sep.to_string() }).await;
+            }
             let mut final_messages = chat_messages.clone();
             final_messages.push(ChatMessageParam {
                 role: "user".to_string(), content: synth_prompt,
@@ -302,12 +325,16 @@ impl AgentRunner {
             } else {
                 "Action canceled. The tool execution was rejected by the operator.\n\n<options>\n<option>What would you like to do next?</option>\n</options>".to_string()
             }
+        } else if !accumulated_full_response.trim().is_empty() {
+            if last_completed_text.trim().starts_with("<options") && !synth_text.trim().is_empty() {
+                synth_text
+            } else {
+                accumulated_full_response
+            }
         } else if !synth_text.trim().is_empty() {
             synth_text
         } else if !last_completed_text.trim().is_empty() {
             last_completed_text
-        } else if !accumulated_full_response.trim().is_empty() {
-            accumulated_full_response
         } else if executed_any_tool {
             "I have completed the requested actions. Please let me know how you would like to proceed.\n\n<options>\n<option>Show details of actions performed</option>\n<option>What would you like to do next?</option>\n</options>".to_string()
         } else if !last_completed_thought.trim().is_empty() || !accumulated_full_thought.trim().is_empty() {
@@ -320,7 +347,8 @@ impl AgentRunner {
             final_resp = format!("Here are your options:\n\n{}", final_resp.trim());
         }
 
-        let final_th = if !last_completed_thought.trim().is_empty() { last_completed_thought } else { accumulated_full_thought };
-        Ok((final_resp, final_th))
+        let final_th = if !accumulated_full_thought.trim().is_empty() { accumulated_full_thought } else { last_completed_thought };
+        let tool_calls_json = (!executed_tools_history.is_empty()).then(|| serde_json::to_string(&executed_tools_history).ok()).flatten();
+        Ok((final_resp, final_th, tool_calls_json))
     }
 }

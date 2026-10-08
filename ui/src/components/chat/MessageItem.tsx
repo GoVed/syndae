@@ -3,6 +3,8 @@ import { Bot, User, MessageSquare, BrainCircuit, Sparkles, ChevronDown, ChevronR
 import { ChatMessage } from '../../types';
 import { extractThoughtAndContent, extractOptionsAndContent, parseToolEvent, renderMarkdown, resolveImageUrl } from './helpers';
 import { OptionsPills } from './OptionsPills';
+import { AggregatedToolActivity } from './AggregatedToolActivity';
+import { ToolExecutionCard } from './types';
 
 export interface MessageItemProps {
   message: ChatMessage;
@@ -44,6 +46,16 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     : extractOptionsAndContent(cleanThoughtContent);
 
   const cleanContent = rawCleanContent || (!isUser && options.length > 0 ? "I've processed your request. Please select a next action below:" : "");
+
+  const toolExecutions: ToolExecutionCard[] = React.useMemo(() => {
+    if (!message.tool_calls) return [];
+    try {
+      const parsed = typeof message.tool_calls === 'string' ? JSON.parse(message.tool_calls) : message.tool_calls;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [message.tool_calls]);
 
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
@@ -141,6 +153,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             {thought}
           </div>
         </details>
+      )}
+
+      {/* Persisted Tool Activity from Multi-Step Turns */}
+      {toolExecutions.length > 0 && (
+        <div className="w-full max-w-3xl mb-2.5">
+          <AggregatedToolActivity executions={toolExecutions} />
+        </div>
       )}
 
       {/* Message Content */}

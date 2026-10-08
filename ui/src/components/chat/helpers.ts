@@ -176,16 +176,26 @@ export const extractThoughtAndContent = (
   }
 
   // 3. Extract leading untagged meta-reasoning paragraphs
-  const metaReasoningRegex =
-    /^(?:\[(?:Memory Check|Reasoning|Plan|Thought|Internal|Context)\]|Okay[,.]|Alright[,.]|Looking at|The user|Since (?:I|there)|I should|I shouldn't|I need to|I'll|I will|Let me|Based on|From (?:my |the )?(?:memory|scratchpad)|Thinking Process|Reasoning Process|The daily log|As (?:Syndae|an AI)|However, I (?:don't|do not)|I don't have access|The memory only contains|Given (?:the |this )?|Considering (?:the |this )?|In this (?:conversation|context)|To respond to the user)/i;
-
+  // Only match explicit internal monologue discussing the user in 3rd person or internal markers,
+  // NOT conversational first-person phrases like "Let me...", "I will...", "Looking at...", "Based on...", lists, etc.
   const isMetaPara = (p: string): boolean => {
     const pTrim = p.trim();
     const lower = pTrim.toLowerCase();
     return (
-      metaReasoningRegex.test(pTrim) ||
-      ['is asking ', 'has chosen ', 'has asked ', 'wants me to ', 'i should ', 'i need to ', "i'll ", 'i will ', 'system instructions', 'onboarding mode', '<options> block', 'wrap my thinking'].some(s => lower.includes(s)) ||
-      pTrim.startsWith('- ') || pTrim.startsWith('* ') || /^\d+\.\s/.test(pTrim)
+      lower.startsWith('the user is asking') ||
+      lower.startsWith('the user has asked') ||
+      lower.startsWith('the user has chosen') ||
+      lower.startsWith('the user wants me to') ||
+      lower.startsWith('the user wants to') ||
+      lower.startsWith('the user prompted') ||
+      lower.startsWith('the operator is asking') ||
+      lower.startsWith('operator is asking') ||
+      lower.startsWith('thinking process:') ||
+      lower.startsWith('reasoning process:') ||
+      lower.startsWith('step 1:') ||
+      lower.startsWith('[reasoning]') ||
+      lower.startsWith('[thought]') ||
+      lower.startsWith('[plan]')
     );
   };
 

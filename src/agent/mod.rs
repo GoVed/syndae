@@ -228,7 +228,7 @@ impl AgentRunner {
         }
 
         // Run multi-iteration turn execution loop
-        let (raw_response, raw_thought) = self
+        let (raw_response, raw_thought, tool_calls_json) = self
             .execute_turn_loop(
                 session_id,
                 &model_cfg,
@@ -254,7 +254,7 @@ impl AgentRunner {
                 "assistant",
                 &final_response,
                 thought_opt.as_deref(),
-                None,
+                tool_calls_json.as_deref(),
             )
             .await?;
 

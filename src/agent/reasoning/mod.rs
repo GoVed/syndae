@@ -29,37 +29,21 @@ fn is_pseudo_function_call(line: &str) -> bool {
 /// Helper function to detect and separate untagged chain-of-thought analysis paragraphs
 pub fn split_leading_reasoning(content: &str) -> (Option<String>, String) {
     let meta_prefixes = [
-        "Given ",
-        "Considering ",
-        "In this conversation",
-        "In this context",
-        "To respond to the user",
-        "Looking at ",
-        "The user ",
-        "Since I ",
-        "Since there ",
-        "I should ",
-        "I shouldn't ",
-        "I need to ",
-        "Let me ",
-        "Based on ",
-        "From my ",
-        "From the ",
-        "From memory",
-        "From scratchpad",
         "Thinking Process",
         "Reasoning Process",
         "[Memory Check]",
         "[Plan]",
         "[Reasoning]",
         "[Thought]",
+        "[Internal]",
         "[Context]",
-        "The daily log ",
-        "As Syndae, I should ",
-        "As an AI ",
-        "However, I ",
-        "I don't have access to real-time",
-        "The memory only contains",
+        "The user is asking",
+        "The user has asked",
+        "The user has chosen",
+        "The user wants me to",
+        "The user prompted",
+        "The operator is asking",
+        "Operator is asking",
         "Call:",
         "call:",
         "STEP 1:",
@@ -79,32 +63,18 @@ pub fn split_leading_reasoning(content: &str) -> (Option<String>, String) {
     let is_meta_para = |p: &str| -> bool {
         let lower = p.to_lowercase();
         meta_prefixes.iter().any(|prefix| p.starts_with(prefix))
-            || p.starts_with("Okay,")
-            || p.starts_with("Okay.")
-            || p.starts_with("Alright,")
-            || p.starts_with("Alright.")
             || is_pseudo_function_call(p)
             || lower.starts_with("step 1:")
+            || lower.starts_with("thinking process:")
+            || lower.starts_with("reasoning process:")
             || lower.contains("is asking ")
             || lower.contains("has chosen ")
             || lower.contains("has asked ")
             || lower.contains("wants me to ")
-            || lower.contains("i should ")
-            || lower.contains("i need to ")
-            || lower.contains("i'll formulate")
-            || lower.contains("i will formulate")
-            || lower.contains("i'll generate")
-            || lower.contains("i will generate")
-            || lower.contains("i'll respond")
-            || lower.contains("i will respond")
-            || lower.contains("i'll output")
-            || lower.contains("i will output")
             || lower.contains("system instructions")
             || lower.contains("onboarding mode")
             || lower.contains("<options> block")
             || lower.contains("wrap my thinking")
-            || p.starts_with("- ")
-            || p.starts_with("* ")
     };
 
     let first_is_meta = paragraphs.first().is_some_and(|p| is_meta_para(p.trim()));

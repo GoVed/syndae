@@ -413,3 +413,14 @@ fn test_extract_thought_and_response_antthinking_and_parameters() {
     assert!(thought.unwrap().contains("Memory Grounding"));
 }
 
+#[test]
+fn test_extract_thought_and_response_preserves_conversational_prefixes() {
+    let raw = "Let me try with the local file path:\n\nLooking at your photos, I found 3 files:\n- sunset.jpg\n- dog.jpg\n\n<options>\n<option>Option 1</option>\n</options>";
+    let (resp, thought) = super::reasoning::extract_thought_and_response(raw, "");
+    assert!(resp.contains("Let me try with the local file path:"));
+    assert!(resp.contains("Looking at your photos"));
+    assert!(resp.contains("- sunset.jpg"));
+    assert!(thought.is_none());
+}
+
+

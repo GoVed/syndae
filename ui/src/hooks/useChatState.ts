@@ -253,8 +253,7 @@ export const useChatState = ({
       setLiveStreamingText(`⏳ Queued in GPU scheduler (Position ${evt.queue_position}/${evt.total_queued}). Waiting for inference slot...`);
     } else if (evt.type === 'queue_started') {
       setIsStreaming(true);
-      setLiveStreamingText('');
-      setLiveThought('');
+      setLiveStreamingText(prev => (prev.startsWith('⏳ Queued in GPU scheduler') ? '' : prev));
       if (targetSessionId) {
         loadMessages(targetSessionId);
       }
