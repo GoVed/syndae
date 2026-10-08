@@ -64,6 +64,20 @@ pub async fn load_image_bytes(input: &str) -> Result<Vec<u8>> {
         return Ok(bytes);
     }
 
+    if let Some(file_name) = local_path.file_name() {
+        if let Ok(mut entries) = tokio::fs::read_dir("/tools").await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                let candidate = entry.path().join("data/cache").join(file_name);
+                if candidate.exists() {
+                    let bytes = tokio::fs::read(&candidate)
+                        .await
+                        .context(format!("Failed to read resolved local image file at {}", candidate.display()))?;
+                    return Ok(bytes);
+                }
+            }
+        }
+    }
+
     bail!("Could not resolve image source (not a valid data URI, HTTP URL, or local file): {}", trimmed)
 }
 

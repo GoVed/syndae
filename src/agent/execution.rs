@@ -275,7 +275,7 @@ impl AgentRunner {
             });
             let mut rx = self.router.dispatch_stream(
                 &model_cfg.provider, model_cfg.base_url.as_deref(), model_cfg.api_key.as_deref(),
-                &model_cfg.model_id, final_messages, vec![], Some(1024), Some("low"), None,
+                &model_cfg.model_id, final_messages, vec![], Some(1024), Some("off"), None,
             ).await;
             while let Some(chunk) = rx.recv().await {
                 match chunk {
@@ -297,13 +297,23 @@ impl AgentRunner {
         }
 
         let mut final_resp = if had_tool_rejection {
-            if !synth_text.trim().is_empty() { synth_text } else { "Action canceled. The tool execution was rejected by the operator.\n\n<options>\n<option>What would you like to do next?</option>\n</options>".to_string() }
+            if !synth_text.trim().is_empty() {
+                synth_text
+            } else {
+                "Action canceled. The tool execution was rejected by the operator.\n\n<options>\n<option>What would you like to do next?</option>\n</options>".to_string()
+            }
         } else if !synth_text.trim().is_empty() {
             synth_text
         } else if !last_completed_text.trim().is_empty() {
             last_completed_text
-        } else {
+        } else if !accumulated_full_response.trim().is_empty() {
             accumulated_full_response
+        } else if executed_any_tool {
+            "I have completed the requested actions. Please let me know how you would like to proceed.\n\n<options>\n<option>Show details of actions performed</option>\n<option>What would you like to do next?</option>\n</options>".to_string()
+        } else if !last_completed_thought.trim().is_empty() || !accumulated_full_thought.trim().is_empty() {
+            "I have processed your request, but could not produce a response. How would you like to proceed?\n\n<options>\n<option>Try again</option>\n<option>Provide more details</option>\n</options>".to_string()
+        } else {
+            "I could not complete the response. How would you like to proceed?\n\n<options>\n<option>Try again</option>\n</options>".to_string()
         };
 
         if final_resp.trim().starts_with("<options") {
