@@ -177,6 +177,10 @@ impl DeployModelRequest {
                 args.push("-ngl".to_string());
                 args.push("99".to_string()); // offload all layers to GPU by default
 
+                let parallel = self.max_num_seqs.unwrap_or(1);
+                args.push("--parallel".to_string());
+                args.push(parallel.to_string());
+
                 if let Some(ctx) = self.context_window {
                     args.push("-c".to_string());
                     args.push(ctx.to_string());

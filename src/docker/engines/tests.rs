@@ -230,6 +230,10 @@ mod tests {
         let c_idx = args.iter().position(|a| a == "-c").unwrap();
         assert_eq!(args[c_idx + 1], "131072");
 
+        assert!(args.contains(&"--parallel".to_string()));
+        let p_idx = args.iter().position(|a| a == "--parallel").unwrap();
+        assert_eq!(args[p_idx + 1], "1");
+
         // Verify obsolete or absent draft flags are never passed
         assert!(!args.contains(&"--draft-max".to_string()));
         assert!(!args.contains(&"-md".to_string()));
