@@ -248,9 +248,10 @@ pub async fn handle_inbound_tool_event(
         })
         .map(|u| vec![u.to_string()]);
 
-    let media_info = if incoming_images.is_some() {
+    let media_info = if let Some(ref imgs) = incoming_images {
         let m_type = extract_field(&payload.payload, &["media_type", "type"]).unwrap_or("IMAGE");
-        format!("\nAttachment: [{}]", m_type.to_uppercase())
+        let u = imgs.first().map(|s| format!(" ({s})")).unwrap_or_default();
+        format!("\nAttachment: [{}]{}", m_type.to_uppercase(), u)
     } else {
         String::new()
     };

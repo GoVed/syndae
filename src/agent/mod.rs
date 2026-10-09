@@ -192,11 +192,7 @@ impl AgentRunner {
                 _ => "user",
             };
             let tool_calls_param = msg.tool_calls.as_deref().and_then(|tc| serde_json::from_str(tc).ok());
-            let images_param = if is_vision_capable {
-                msg.images.as_deref().and_then(|imgs| serde_json::from_str(imgs).ok())
-            } else {
-                None
-            };
+            let images_param = msg.images.as_deref().and_then(|imgs| serde_json::from_str(imgs).ok());
 
             let is_last_turn = idx + 1 == hist_len && msg.role == "user";
             let content = prompt::enrich_user_turn_content(user_prompt, &msg.content, is_last_turn);
@@ -216,9 +212,6 @@ impl AgentRunner {
         let mut available_tools = Vec::new();
         for t in all_tools {
             if t.policy != PolicyTier::Blocked {
-                if is_vision_capable && (t.name == "inspect_image" || t.name == "describe_image" || t.name == "ocr_image") {
-                    continue;
-                }
                 available_tools.push(ToolParam {
                     name: t.name,
                     description: t.description,

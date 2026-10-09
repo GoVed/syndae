@@ -208,11 +208,12 @@ pub async fn inspect_image_with_model(
     let clean_base = adapt_docker_url(base_url);
     let chat_url = format!("{}/chat/completions", clean_base);
 
-    info!("Inspecting image via vision model at {} (source: {})", chat_url, image_src);
+    let src_preview = if image_src.starts_with("data:image/") { "data:image/... (base64)" } else { image_src };
+    info!("Inspecting image via vision model at {} (source: {})", chat_url, src_preview);
     let data_uri = resolve_image_to_jpeg_data_uri(image_src).await?;
 
     let prompt_text = if question.trim().is_empty() {
-        "Describe what is shown in this image in detail, including key subjects, expressions, colors, and any text."
+        "Describe what is shown in this image or sticker in detail, including key subjects, facial expressions, colors, and any text."
     } else {
         question.trim()
     };

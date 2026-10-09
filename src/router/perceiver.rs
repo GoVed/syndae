@@ -64,16 +64,20 @@ pub async fn perceive_or_strip_images(
                     } else if p_type == "image_url" {
                         let mut replaced = false;
                         if let Some(data_uri) = part.get("image_url").and_then(|u| u.get("url")).and_then(|s| s.as_str()) {
-                            if let Ok(analysis) = inspect_image_with_model(
+                            match inspect_image_with_model(
                                 endpoint.0,
                                 endpoint.1,
                                 endpoint.2,
                                 data_uri,
-                                "Describe what is shown in this image thoroughly: identify all visible text, people, objects, activities, scene setting, and key details.",
+                                "Describe what is shown in this image or sticker thoroughly: identify all visible text, people, facial expressions, emotions, objects, activities, scene setting, and key details.",
                             ).await {
-                                if !analysis.trim().is_empty() {
+                                Ok(analysis) if !analysis.trim().is_empty() => {
                                     text_parts.push(format!("[Visual Observation from Vision Model: {}]", analysis.trim()));
                                     replaced = true;
+                                }
+                                Ok(_) => {}
+                                Err(e) => {
+                                    tracing::warn!("Failed to perceive image via vision sidecar: {}", e);
                                 }
                             }
                         }
@@ -88,4 +92,27 @@ pub async fn perceive_or_strip_images(
         out.push(cloned);
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_perceive_or_strip_images_fallback() {
+        let msgs = vec![json!({
+            "role": "user",
+            "content": [
+                { "type": "text", "text": "Look at this:" },
+                { "type": "image_url", "image_url": { "url": "data:image/jpeg;base64,invalid" } }
+            ]
+        })];
+
+        // Should not panic on invalid image/endpoint, falls back gracefully to [Image attached]
+        let out = perceive_or_strip_images(&msgs, Some(("http://127.0.0.1:9999/v1", "", "dummy"))).await;
+        assert_eq!(out.len(), 1);
+        let content_str = out[0]["content"].as_str().unwrap();
+        assert!(content_str.contains("Look at this:"));
+        assert!(content_str.contains("[Image attached]"));
+    }
 }

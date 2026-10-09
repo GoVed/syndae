@@ -203,7 +203,15 @@ impl OpenAiClient {
             let status = resp.status();
             let text = resp.text().await.unwrap_or_default();
 
-            let retry_opt = if text.contains("image input is not supported") || text.contains("mmproj") {
+            let is_image_error = text.contains("image input is not supported")
+                || text.contains("mmproj")
+                || text.contains("does not support image")
+                || text.contains("unsupported image")
+                || text.contains("image_url")
+                || (body.get("messages").map(|m| m.to_string().contains("image_url")).unwrap_or(false)
+                    && (text.contains("image") || text.contains("multimodal") || text.contains("vision")));
+
+            let retry_opt = if is_image_error {
                 let raw_msgs = body.get("messages").and_then(|m| m.as_array()).map(|a| a.as_slice()).unwrap_or(&[]);
                 let perceived = super::perceiver::perceive_or_strip_images(raw_msgs, None).await;
                 let mut rb = body.clone();

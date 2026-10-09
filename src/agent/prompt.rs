@@ -62,7 +62,7 @@ pub fn build_agent_system_prompt(
     if is_vision_capable {
         system_context.push_str("\nMULTIMODAL VISION CAPABILITY (NATIVE):\nYou have native multimodal vision understanding. Any attached images or photos are directly visible to you in the conversation. Analyze images directly without calling external inspection tools.\n");
     } else {
-        system_context.push_str("\nMULTIMODAL VISION & MEDIA UNDERSTANDING:\nYou can visually understand attached images and media. Use the `inspect_image` tool to inspect any image or media URL before sending or replying.\n");
+        system_context.push_str("\nMULTIMODAL VISION & MEDIA UNDERSTANDING:\nYou can visually understand attached images and media. Visual observations from connected vision models or image inspection tools are available for attached media URLs.\n");
     }
 
     system_context.push_str("\nMEDIA & IMAGES:\n");
@@ -99,7 +99,7 @@ pub fn enrich_user_turn_content(
     } else {
         content.push_str("\n\n[SYSTEM DIRECTIVE: The operator is speaking directly to you (Syndae). Respond directly to the operator. Do not assume this refers to external platform messages unless requested. Conclude your response with relevant next actions or options inside <options> tags.]");
     }
-    content.push_str("\n\n[SYSTEM REMINDER: Conclude your response with <title>Concise Topic Title</title> (2-5 words) summarizing this conversation's current topic.]");
+    content.push_str("\n\n[FORMAT DIRECTIVE: Conclude response with <title>Concise Topic Title</title> (2-5 words)]");
 
     content
 }
