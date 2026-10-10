@@ -40,14 +40,7 @@ pub fn build_agent_system_prompt(
 
     system_context.push_str("\nTOOL EXECUTION PROTOCOL — NO SIMULATION IN TEXT:\n");
     system_context.push_str("1. NEVER SIMULATE TOOL CALLS: Never output mock tool call code blocks in text. When an action requires a tool, invoke the actual tool function via the structured tool call interface.\n");
-    system_context.push_str("2. OPTIONS & REASONING IN ENGLISH: All <think> thoughts and <option> tags must be formulated in clean, concise English so the operator can easily read and select them.\n");
-
-    system_context.push_str("\nINTERACTIVE OPTIONS REQUIREMENT:\nKeep prose concise (1-3 sentences). Formulate all options strictly in clean English. Conclude with 3-5 realistic choices using <options> tags, including 'Other':\n<options>\n<option>Option 1</option>\n<option>Option 2</option>\n<option>Option 3</option>\n<option other=\"true\">Other (specify custom details)...</option>\n</options>\n");
-
-    system_context.push_str("\nCONVERSATION TOPIC & TITLE GUIDANCE:\n");
-    system_context.push_str("At the very end of your response on every turn (after any options or closing remarks), ALWAYS suggest a short, relevant title (2 to 5 words) that summarizes the current topic or task of this conversation thread using a <title> tag:\n");
-    system_context.push_str("<title>Concise Topic Title</title>\n");
-    system_context.push_str("Make it concise, human-friendly, and specific to the actual task or topic being discussed. Never use generic placeholders like 'New Mission Workspace', 'New Chat', or 'Active Session'. Do not wrap the title text in quotes.\n");
+    system_context.push_str("2. REASONING IN ENGLISH: Formulate all <think> thoughts in clean, concise English.\n");
 
     system_context.push_str("\nUSER ONBOARDING & ENROLLMENT:\n");
     system_context.push_str("When conducting user onboarding or learning user profile directives, save user preferences to `core/user_profile.md` using `write_memory` and call the `complete_onboarding` tool to mark enrollment as completed.\n");
@@ -78,7 +71,7 @@ pub fn build_agent_system_prompt(
     system_context.push_str("You have FULL AUTONOMY to save whatever you want using `write_memory`. Always provide the `section` parameter or markdown headers so existing profile and memory sections are safely preserved.\n");
 
     system_context.push_str("\n=== COMMUNICATION CAPABILITIES ===\n");
-    system_context.push_str("You have full autonomy to understand and communicate with your operator across languages and regional dialects. Propose concise, relevant options in <options> tags so the operator can easily select or steer the conversation.\n");
+    system_context.push_str("You have full autonomy to understand and communicate with your operator across languages and regional dialects.\n");
 
     system_context
 }
@@ -95,13 +88,56 @@ pub fn enrich_user_turn_content(
     }
 
     if raw_content.trim_start().starts_with("[INCOMING TOOL EVENT:") {
-        content.push_str("\n\n[SYSTEM DIRECTIVE: Incoming external tool event. Inform the operator concisely, suggest appropriate next actions, and provide choices inside <options> tags.]");
+        content.push_str("\n\n[SYSTEM DIRECTIVE: Incoming external tool event. Inform the operator concisely, and take action using tools if appropriate.]");
     } else {
-        content.push_str("\n\n[SYSTEM DIRECTIVE: The operator is speaking directly to you (Syndae). Respond directly to the operator. Do not assume this refers to external platform messages unless requested. Conclude your response with relevant next actions or options inside <options> tags.]");
+        content.push_str("\n\n[SYSTEM DIRECTIVE: The operator is speaking directly to you (Syndae). Respond directly to the operator. Do not assume this refers to external platform messages unless requested.]");
     }
-    content.push_str("\n\n[FORMAT DIRECTIVE: Conclude response with <title>Concise Topic Title</title> (2-5 words)]");
 
     content
+}
+
+/// Strips `<options>...</options>` and `<title>...</title>` blocks from past assistant turns
+/// to prevent few-shot bias toward premature turn endings and to save context budget.
+pub fn strip_options_and_title_blocks(content: &str) -> String {
+    let without_options = strip_tag_block(content, "options");
+    let without_title = strip_tag_block(&without_options, "title");
+    without_title.trim().to_string()
+}
+
+fn strip_tag_block(content: &str, tag: &str) -> String {
+    let open_tag = format!("<{}", tag);
+    let close_tag = format!("</{}>", tag);
+    let lower = content.to_lowercase();
+    let mut result = String::new();
+    let mut cursor = 0;
+
+    while let Some(start) = lower[cursor..].find(&open_tag) {
+        let abs_start = cursor + start;
+        let rest = &lower[abs_start..];
+        let tag_matches = rest.starts_with(&format!("<{}>", tag))
+            || rest.starts_with(&format!("<{} ", tag))
+            || rest.starts_with(&format!("<{}\n", tag));
+
+        if !tag_matches {
+            result.push_str(&content[cursor..abs_start + open_tag.len()]);
+            cursor = abs_start + open_tag.len();
+            continue;
+        }
+
+        result.push_str(&content[cursor..abs_start]);
+        if let Some(end) = lower[abs_start..].find(&close_tag) {
+            cursor = abs_start + end + close_tag.len();
+        } else {
+            cursor = content.len();
+            break;
+        }
+    }
+
+    if cursor < content.len() {
+        result.push_str(&content[cursor..]);
+    }
+
+    result
 }
 
 /// Strips duplicate <options>...</options> blocks if the model generated multiple blocks,
@@ -219,7 +255,14 @@ mod tests {
             true,
         );
         assert!(content.contains("[SYSTEM DIRECTIVE: The operator is speaking directly to you (Syndae)."));
-        assert!(content.contains("<title>Concise Topic Title</title>"));
+        assert!(!content.contains("<title>"));
+    }
+
+    #[test]
+    fn test_strip_options_and_title_blocks() {
+        let raw = "Here is the response text.\n\n<options>\n<option>Opt 1</option>\n</options>\n\n<title>Some Title</title>";
+        let stripped = strip_options_and_title_blocks(raw);
+        assert_eq!(stripped, "Here is the response text.");
     }
 
     #[test]

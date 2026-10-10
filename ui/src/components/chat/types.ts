@@ -49,6 +49,7 @@ export interface ChatViewProps {
   liveStreamingText: string;
   liveToolExecutions: ToolExecutionCard[];
   isStreaming: boolean;
+  isGeneratingOptions?: boolean;
   chatError?: string | null;
   onClearChatError?: () => void;
   messages?: ChatMessage[];

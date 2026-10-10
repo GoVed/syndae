@@ -37,6 +37,7 @@ export const App: React.FC = () => {
     liveStreamingText,
     liveToolExecutions,
     isStreaming,
+    isGeneratingOptions,
     chatError,
     setChatError,
     memoryFiles,
@@ -168,6 +169,7 @@ export const App: React.FC = () => {
             liveStreamingText={liveStreamingText}
             liveToolExecutions={liveToolExecutions}
             isStreaming={isStreaming}
+            isGeneratingOptions={isGeneratingOptions}
             chatError={chatError}
             onClearChatError={() => setChatError(null)}
             messages={messages}

@@ -16,6 +16,7 @@ pub mod compression;
 pub mod diagnosis;
 pub mod execution;
 pub mod hitl_handler;
+pub mod options;
 pub mod prompt;
 pub mod queue;
 pub mod reasoning;
@@ -195,7 +196,10 @@ impl AgentRunner {
             let images_param = msg.images.as_deref().and_then(|imgs| serde_json::from_str(imgs).ok());
 
             let is_last_turn = idx + 1 == hist_len && msg.role == "user";
-            let content = prompt::enrich_user_turn_content(user_prompt, &msg.content, is_last_turn);
+            let mut content = prompt::enrich_user_turn_content(user_prompt, &msg.content, is_last_turn);
+            if msg.role == "assistant" {
+                content = prompt::strip_options_and_title_blocks(&content);
+            }
 
             chat_messages.push(ChatMessageParam {
                 role: llm_role.to_string(),
@@ -236,9 +240,34 @@ impl AgentRunner {
         // Separate reasoning and clean final response
         let (extracted_response, thought_opt) =
             extract_thought_and_response(&raw_response, &raw_thought);
-        let (response_without_title, suggested_title_opt) =
+        let (response_without_title, primary_title_opt) =
             reasoning::extract_suggested_title(&extracted_response);
-        let final_response = prompt::sanitize_option_tags(&response_without_title);
+
+        // Notify UI that interactive options and title are being generated
+        let _ = event_tx.send(AgentEvent::GeneratingOptions).await;
+
+        // Dispatches fast post-turn non-reasoning sub-call (<1s) for options & title
+        let (sub_options, sub_title_opt) = options::generate_options_and_title(
+            &self.router,
+            &model_cfg,
+            user_prompt,
+            &response_without_title,
+        )
+        .await;
+
+        let suggested_title_opt = primary_title_opt.or(sub_title_opt);
+
+        let mut response_with_options = response_without_title;
+        if let Some(opts) = sub_options {
+            if !response_with_options.contains("<options") {
+                if !response_with_options.trim().is_empty() {
+                    response_with_options.push_str("\n\n");
+                }
+                response_with_options.push_str(&opts);
+            }
+        }
+
+        let final_response = prompt::sanitize_option_tags(&response_with_options);
 
         let saved_msg = self
             .db

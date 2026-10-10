@@ -24,6 +24,7 @@ export const useChatState = ({
   const [liveStreamingText, setLiveStreamingText] = useState('');
   const [liveToolExecutions, setLiveToolExecutions] = useState<any[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isGeneratingOptions, setIsGeneratingOptions] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
   const activeSessionRef = useRef<ChatSession | null>(null);
@@ -32,6 +33,14 @@ export const useChatState = ({
   liveStreamingTextRef.current = liveStreamingText;
   const liveThoughtRef = useRef('');
   liveThoughtRef.current = liveThought;
+
+  const resetStreamingState = useCallback(() => {
+    setIsStreaming(false);
+    setIsGeneratingOptions(false);
+    setLiveStreamingText('');
+    setLiveThought('');
+    setLiveToolExecutions([]);
+  }, []);
 
   const loadMessages = useCallback(async (sessionId: string) => {
     try {
@@ -46,17 +55,14 @@ export const useChatState = ({
   }, []);
 
   useEffect(() => {
-    setIsStreaming(false);
-    setLiveStreamingText('');
-    setLiveThought('');
-    setLiveToolExecutions([]);
+    resetStreamingState();
     setChatError(null);
     if (activeSession?.id) {
       loadMessages(activeSession.id);
     } else {
       setMessages([]);
     }
-  }, [activeSession?.id, loadMessages]);
+  }, [activeSession?.id, loadMessages, resetStreamingState]);
 
   // Streaming watchdog: polls messages and pending tickets if turn finishes or pauses without socket done
   useEffect(() => {
@@ -70,10 +76,7 @@ export const useChatState = ({
           const lastMsg = data.messages[data.messages.length - 1];
           if (lastMsg && lastMsg.role === 'assistant') {
             setMessages(data.messages);
-            setIsStreaming(false);
-            setLiveStreamingText('');
-            setLiveThought('');
-            setLiveToolExecutions([]);
+            resetStreamingState();
           }
         }
 
@@ -150,11 +153,9 @@ export const useChatState = ({
       created_at: new Date().toISOString(),
     };
     setMessages(prev => [...prev, optimisticMsg]);
+    resetStreamingState();
     setIsStreaming(true);
     setChatError(null);
-    setLiveStreamingText('');
-    setLiveThought('');
-    setLiveToolExecutions([]);
 
     try {
       const res = await fetch('/api/chat/send', {
@@ -197,6 +198,13 @@ export const useChatState = ({
 
     if (evt.type === 'onboarding_completed') {
       setAuthStatus(prev => (prev ? { ...prev, onboarded: true } : null));
+      return;
+    }
+
+    if (evt.type === 'generating_options') {
+      if (isForActiveSession) {
+        setIsGeneratingOptions(true);
+      }
       return;
     }
 
@@ -308,10 +316,7 @@ export const useChatState = ({
             console.error('Failed to reload messages on done:', err);
           })
           .finally(() => {
-            setIsStreaming(false);
-            setLiveStreamingText('');
-            setLiveThought('');
-            setLiveToolExecutions([]);
+            resetStreamingState();
             fetch('/api/auth/status')
               .then(r => r.json())
               .then(s => setAuthStatus(s))
@@ -326,22 +331,16 @@ export const useChatState = ({
               .catch(() => {});
           });
       } else {
-        setIsStreaming(false);
-        setLiveStreamingText('');
-        setLiveThought('');
-        setLiveToolExecutions([]);
+        resetStreamingState();
       }
     } else if (evt.type === 'error') {
-      setIsStreaming(false);
-      setLiveStreamingText('');
-      setLiveThought('');
-      setLiveToolExecutions([]);
+      resetStreamingState();
       setChatError(evt.message || 'Inference engine connection error. The model may still be initializing.');
       if (targetSessionId) {
         loadMessages(targetSessionId);
       }
     }
-  }, [loadMessages, refreshAuditData, setAuthStatus, setPendingTickets]);
+  }, [loadMessages, refreshAuditData, resetStreamingState, setAuthStatus, setPendingTickets]);
 
   return {
     sessions,
@@ -355,6 +354,7 @@ export const useChatState = ({
     liveToolExecutions,
     isStreaming,
     setIsStreaming,
+    isGeneratingOptions,
     chatError,
     setChatError,
     loadMessages,

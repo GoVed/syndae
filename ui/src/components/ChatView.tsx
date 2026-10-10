@@ -48,6 +48,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   liveStreamingText,
   liveToolExecutions,
   isStreaming,
+  isGeneratingOptions = false,
   chatError,
   onClearChatError,
   messages: propMessages,
@@ -340,6 +341,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               liveStreamingText={liveStreamingText}
               liveThought={liveThought}
               liveToolExecutions={liveToolExecutions}
+              isGeneratingOptions={isGeneratingOptions}
             />
           )}
 

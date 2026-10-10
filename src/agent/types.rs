@@ -45,6 +45,7 @@ pub enum AgentEvent {
     Done {
         message_id: String,
     },
+    GeneratingOptions,
     SessionTitleUpdated {
         title: String,
     },

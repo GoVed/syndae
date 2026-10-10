@@ -8,12 +8,14 @@ export interface StreamingResponseProps {
   liveStreamingText: string;
   liveThought: string;
   liveToolExecutions: ToolExecutionCard[];
+  isGeneratingOptions?: boolean;
 }
 
 export const StreamingResponse: React.FC<StreamingResponseProps> = ({
   liveStreamingText,
   liveThought,
   liveToolExecutions,
+  isGeneratingOptions = false,
 }) => {
   const [thoughtExpanded, setThoughtExpanded] = useState(false);
 
@@ -25,14 +27,25 @@ export const StreamingResponse: React.FC<StreamingResponseProps> = ({
     <div className="flex flex-col items-start space-y-2.5 w-full">
       {/* Bot Header Badge */}
       <div className="flex items-center space-x-2 text-xs font-semibold text-slate-300">
-        <div className="p-1 rounded-md bg-emerald-950/80 border border-emerald-500/30 text-emerald-400">
+        <div className={`p-1 rounded-md border ${
+          isGeneratingOptions
+            ? 'bg-amber-950/80 border-amber-500/30 text-amber-400'
+            : 'bg-emerald-950/80 border-emerald-500/30 text-emerald-400'
+        }`}>
           <Bot className="w-3.5 h-3.5" />
         </div>
         <span className="text-slate-100 font-semibold">Syndae</span>
-        <span className="flex items-center space-x-1.5 text-[10px] text-emerald-300 bg-emerald-950/70 border border-emerald-500/30 rounded-full px-2.5 py-0.5 font-medium">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Generating response...</span>
-        </span>
+        {isGeneratingOptions ? (
+          <span className="flex items-center space-x-1.5 text-[10px] text-amber-300 bg-amber-950/70 border border-amber-500/30 rounded-full px-2.5 py-0.5 font-medium animate-fade-in">
+            <Sparkles className="w-3 h-3 text-amber-400 animate-spin" />
+            <span className="options-shimmer-text font-semibold">Suggesting next actions...</span>
+          </span>
+        ) : (
+          <span className="flex items-center space-x-1.5 text-[10px] text-emerald-300 bg-emerald-950/70 border border-emerald-500/30 rounded-full px-2.5 py-0.5 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Generating response...</span>
+          </span>
+        )}
       </div>
 
       {/* Persisted & Active Execution Timeline */}
@@ -84,6 +97,27 @@ export const StreamingResponse: React.FC<StreamingResponseProps> = ({
             className="prose max-w-none break-words"
             dangerouslySetInnerHTML={{ __html: renderMarkdown(activeStreamingText) }}
           />
+        </div>
+      )}
+
+      {/* Shimmering Suggested Options Skeleton while post-turn subagent runs */}
+      {isGeneratingOptions && (
+        <div className="w-full max-w-3xl rounded-2xl bg-syndae-900/90 border border-amber-500/30 p-3.5 space-y-3 shadow-md backdrop-blur-md animate-fade-in">
+          <div className="flex items-center justify-between text-xs">
+            <span className="flex items-center space-x-1.5 font-semibold text-amber-300">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <span className="options-shimmer-text">SUGGESTING NEXT ACTIONS...</span>
+            </span>
+            <span className="text-[11px] text-amber-400/80 font-medium px-2.5 py-0.5 rounded-full bg-amber-950/70 border border-amber-500/30">
+              Generating options
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2 sm:gap-2.5 pt-0.5">
+            <div className="h-8 w-36 rounded-xl options-shimmer-pill border border-amber-500/20" />
+            <div className="h-8 w-48 rounded-xl options-shimmer-pill border border-amber-500/20" />
+            <div className="h-8 w-32 rounded-xl options-shimmer-pill border border-amber-500/20" />
+            <div className="h-8 w-24 rounded-xl options-shimmer-pill border border-amber-500/20" />
+          </div>
         </div>
       )}
     </div>
