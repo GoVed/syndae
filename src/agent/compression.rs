@@ -148,6 +148,8 @@ pub fn prepare_auto_compressed_messages(
         // Compact older messages into a summary block
         let mut summary_lines = Vec::new();
         summary_lines.push("[Prior Conversation Context (Auto-Compressed Summary)]:".to_string());
+        let mut seen_assistant_prefixes = std::collections::HashSet::new();
+
         for msg in &older_messages {
             let role_label = match msg.role.as_str() {
                 "user" => "User",
@@ -163,6 +165,14 @@ pub fn prepare_auto_compressed_messages(
                 cleaned
             };
             if !snippet.is_empty() {
+                if msg.role == "assistant" {
+                    let prefix: String = snippet.chars().take(80).collect();
+                    if seen_assistant_prefixes.contains(&prefix) {
+                        summary_lines.push("- Syndae: [Repeated previous response]".to_string());
+                        continue;
+                    }
+                    seen_assistant_prefixes.insert(prefix);
+                }
                 summary_lines.push(format!("- {}: {}", role_label, snippet));
             }
         }

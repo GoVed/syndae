@@ -295,15 +295,15 @@ impl AgentRunner {
                     || t.starts_with("New ")
             };
 
-            let candidate_title = if let Some(suggested) = suggested_title_opt {
-                Some(suggested)
-            } else if is_generic {
-                let fallback = reasoning::generate_fallback_title(user_prompt);
-                if !fallback.is_empty() && fallback != current_session.title {
-                    Some(fallback)
-                } else {
-                    None
-                }
+            let candidate_title = if is_generic {
+                suggested_title_opt.or_else(|| {
+                    let fallback = reasoning::generate_fallback_title(user_prompt);
+                    if !fallback.is_empty() && fallback != current_session.title {
+                        Some(fallback)
+                    } else {
+                        None
+                    }
+                })
             } else {
                 None
             };
