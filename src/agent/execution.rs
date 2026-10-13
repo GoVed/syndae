@@ -159,21 +159,10 @@ impl AgentRunner {
 
             let mut sorted_calls: Vec<(usize, (String, String, String))> = tool_calls_map.into_iter().collect();
             sorted_calls.sort_by_key(|(idx, _)| *idx);
-
-            for (_idx, (call_id, _name, _args)) in &mut sorted_calls {
-                if call_id.is_empty() {
-                    *call_id = format!("call_{}", Uuid::new_v4().simple());
-                }
-            }
-
-            let tool_params: Vec<ToolCallParam> = sorted_calls
-                .iter()
-                .map(|(_, (cid, name, args))| ToolCallParam {
-                    id: cid.clone(),
-                    kind: "function".to_string(),
-                    function: ToolCallFunctionParam { name: name.clone(), arguments: args.clone() },
-                })
-                .collect();
+            let tool_params: Vec<ToolCallParam> = sorted_calls.iter().map(|(_, (cid, name, args))| {
+                let id = if cid.is_empty() { format!("call_{}", Uuid::new_v4().simple()) } else { cid.clone() };
+                ToolCallParam { id, kind: "function".to_string(), function: ToolCallFunctionParam { name: name.clone(), arguments: args.clone() } }
+            }).collect();
 
             chat_messages.push(ChatMessageParam {
                 role: "assistant".to_string(),
@@ -214,20 +203,8 @@ impl AgentRunner {
                 };
 
                 let tool_start = Instant::now();
-                let output = if tool_permitted {
+                let (output, success, status) = if tool_permitted {
                     let res = self.execute_tool(&tool_name, final_args.clone()).await;
-                    let duration = tool_start.elapsed().as_millis() as u64;
-                    let payload_str = serde_json::to_string(&final_args).unwrap_or_default();
-                    let _ = self.db.record_audit_event(
-                        Some(session_id), "tool_executed", Some(&tool_name), Some(&payload_str),
-                        Some(if res.success { "success" } else { "error" }), Some(duration as i64),
-                    ).await;
-                    let _ = event_tx.send(AgentEvent::ToolCompleted {
-                        id: call_id.clone(), tool_name: tool_name.clone(), success: res.success, output: res.content.clone(), duration_ms: duration,
-                    }).await;
-
-                    executed_any_tool = true;
-
                     if tool_name == "complete_onboarding"
                         || (tool_name == "write_memory"
                             && final_args.get("path").and_then(|p| p.as_str()).map(|p| p.contains("user_profile")).unwrap_or(false))
@@ -235,37 +212,34 @@ impl AgentRunner {
                         let _ = self.db.set_setting("onboarding_completed", "true").await;
                         let _ = event_tx.send(AgentEvent::OnboardingCompleted).await;
                     }
-                    executed_tools_history.push(json!({
-                        "id": call_id, "tool_name": tool_name, "arguments": final_args,
-                        "status": "completed", "output": res.content, "success": res.success,
-                        "duration_ms": duration, "step": iteration,
-                        "text": if !current_turn_text.trim().is_empty() { Some(current_turn_text.clone()) } else { None },
-                        "thought": if !current_turn_thought.trim().is_empty() { Some(current_turn_thought.clone()) } else { None },
-                    }));
-                    res.content
+                    (res.content, res.success, "completed")
                 } else {
                     had_tool_rejection = true;
-                    executed_any_tool = true;
-                    let duration = tool_start.elapsed().as_millis() as u64;
-                    let reject_msg = format!(
+                    let msg = format!(
                         "Tool execution rejected by human operator. Reason: {}",
                         rejection_reason.as_deref().unwrap_or("Action not permitted by user.")
                     );
-                    let _ = self.db.record_audit_event(
-                        Some(session_id), "tool_rejected", Some(&tool_name), Some(&args_str), Some("rejected"), Some(duration as i64),
-                    ).await;
-                    let _ = event_tx.send(AgentEvent::ToolCompleted {
-                        id: call_id.clone(), tool_name: tool_name.clone(), success: false, output: reject_msg.clone(), duration_ms: duration,
-                    }).await;
-                    executed_tools_history.push(json!({
-                        "id": call_id, "tool_name": tool_name, "arguments": parsed_args,
-                        "status": "rejected", "output": reject_msg, "success": false,
-                        "duration_ms": duration, "step": iteration,
-                        "text": if !current_turn_text.trim().is_empty() { Some(current_turn_text.clone()) } else { None },
-                        "thought": if !current_turn_thought.trim().is_empty() { Some(current_turn_thought.clone()) } else { None },
-                    }));
-                    reject_msg
+                    (msg, false, "rejected")
                 };
+
+                executed_any_tool = true;
+                let duration = tool_start.elapsed().as_millis() as u64;
+                let payload_str = serde_json::to_string(&final_args).unwrap_or_default();
+                let event_type = if status == "completed" { "tool_executed" } else { "tool_rejected" };
+                let _ = self.db.record_audit_event(
+                    Some(session_id), event_type, Some(&tool_name), Some(&payload_str),
+                    Some(if success { "success" } else { "error" }), Some(duration as i64),
+                ).await;
+                let _ = event_tx.send(AgentEvent::ToolCompleted {
+                    id: call_id.clone(), tool_name: tool_name.clone(), success, output: output.clone(), duration_ms: duration,
+                }).await;
+                executed_tools_history.push(json!({
+                    "id": call_id, "tool_name": tool_name, "arguments": final_args,
+                    "status": status, "output": output, "success": success,
+                    "duration_ms": duration, "step": iteration,
+                    "text": if !current_turn_text.trim().is_empty() { Some(current_turn_text.clone()) } else { None },
+                    "thought": if !current_turn_thought.trim().is_empty() { Some(current_turn_thought.clone()) } else { None },
+                }));
 
                 chat_messages.push(ChatMessageParam {
                     role: "tool".to_string(), content: output,

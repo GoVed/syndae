@@ -41,6 +41,7 @@ pub fn build_agent_system_prompt(
     system_context.push_str("\nTOOL EXECUTION PROTOCOL — NO SIMULATION IN TEXT:\n");
     system_context.push_str("1. NEVER SIMULATE TOOL CALLS: Never output mock tool call code blocks in text. When an action requires a tool, invoke the actual tool function via the structured tool call interface.\n");
     system_context.push_str("2. REASONING IN ENGLISH: Formulate all <think> thoughts in clean, concise English.\n");
+    system_context.push_str("3. NEVER EMIT HOLLOW ACTION ANNOUNCEMENTS: Do not emit conversational preambles that only announce you are about to use a tool (such as 'Let me use the tool...', 'Let me try that:'). Either invoke the tool directly through the structured tool call interface, or provide your direct answer immediately.\n");
 
     system_context.push_str("\nUSER ONBOARDING & ENROLLMENT:\n");
     system_context.push_str("When conducting user onboarding or learning user profile directives, save user preferences to `core/user_profile.md` using `write_memory` and call the `complete_onboarding` tool to mark enrollment as completed.\n");
