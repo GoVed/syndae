@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, User, MessageSquare, BrainCircuit, Sparkles, ChevronDown, ChevronRight, CornerDownRight, Maximize2, X, Download } from 'lucide-react';
+import { Bot, User, MessageSquare, Sparkles, ChevronDown, CornerDownRight, Maximize2, X, Download } from 'lucide-react';
 import { ChatMessage } from '../../types';
 import { extractThoughtAndContent, extractOptionsAndContent, parseToolEvent, renderMarkdown, resolveImageUrl } from './helpers';
 import { buildTimelineSteps } from './timelineBuilder';
@@ -53,13 +53,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   }, [message.tool_calls]);
 
   const { timelineExecutions, finalAnswerContent, finalAnswerThought } = React.useMemo(() => {
-    if (isUser) {
-      return {
-        timelineExecutions: [],
-        finalAnswerContent: cleanThoughtContent,
-        finalAnswerThought: null,
-      };
-    }
+    if (isUser) return { timelineExecutions: [], finalAnswerContent: cleanThoughtContent, finalAnswerThought: null };
     return buildTimelineSteps(rawToolExecutions, cleanThoughtContent, thought);
   }, [isUser, rawToolExecutions, cleanThoughtContent, thought]);
 
@@ -107,11 +101,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     }
   };
 
-  const isNextMessageToolEvent = !!(
-    nextMessage &&
-    nextMessage.role === 'user' &&
-    parseToolEvent(nextMessage.content)
-  );
+  const isNextMessageToolEvent = !!(nextMessage && nextMessage.role === 'user' && parseToolEvent(nextMessage.content));
   const hasUserReplied = !!nextMessage && nextMessage.role === 'user' && !isNextMessageToolEvent;
 
   return (
@@ -161,7 +151,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-purple-400 group-open:rotate-180 transition-transform duration-200" />
           </summary>
-          <div className="whitespace-pre-wrap text-purple-200/90 leading-relaxed max-h-56 overflow-y-auto pt-2.5 mt-2 border-t border-purple-900/30 text-xs break-words bg-syndae-950/80 p-2.5 rounded-lg font-mono">
+          <div className="whitespace-pre-wrap text-purple-200/90 leading-relaxed max-h-56 overflow-y-auto pt-2.5 mt-2 border-t border-purple-900/30 text-xs break-words bg-syndae-950/80 p-2.5 rounded-lg font-mono select-text">
             {timelineExecutions.length === 0 ? thought : finalAnswerThought}
           </div>
         </details>
@@ -178,7 +168,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       {isToolEvent ? (
         <div
           onClick={handleContentClick}
-          className="w-full max-w-full sm:max-w-3xl rounded-2xl p-4 text-xs leading-relaxed bg-gradient-to-r from-emerald-950/40 via-syndae-900 to-syndae-900 border border-emerald-500/35 shadow-md space-y-2.5 min-w-0 overflow-hidden"
+          className="w-full max-w-full sm:max-w-3xl rounded-2xl p-4 text-xs leading-relaxed bg-gradient-to-r from-emerald-950/40 via-syndae-900 to-syndae-900 border border-emerald-500/35 shadow-md space-y-2.5 min-w-0 overflow-hidden select-text"
         >
           <div className="flex items-center justify-between text-[11px] font-mono text-emerald-300 border-b border-emerald-900/40 pb-1.5 gap-2">
             <span className="font-semibold flex items-center space-x-1 shrink-0">
@@ -248,7 +238,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       ) : (cleanContent || attachedImages.length > 0) && (
         <div
           onClick={handleContentClick}
-          className={`max-w-[88%] sm:max-w-3xl rounded-2xl p-4 sm:p-4.5 text-[13.5px] leading-relaxed min-w-0 overflow-hidden break-words shadow-sm transition-all ${
+          className={`max-w-[88%] sm:max-w-3xl rounded-2xl p-4 sm:p-4.5 text-[13.5px] leading-relaxed min-w-0 overflow-hidden break-words shadow-sm transition-all select-text ${
             isUser
               ? 'bg-blue-950/35 text-blue-50 border border-blue-800/40 rounded-tr-sm'
               : 'bg-syndae-900/90 text-slate-100 border border-syndae-800/80 rounded-tl-sm backdrop-blur-md'
@@ -290,7 +280,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
           {cleanContent && (
             <div
-              className="prose max-w-none break-words min-w-0 overflow-hidden"
+              className="prose max-w-none break-words min-w-0 overflow-hidden select-text"
               onErrorCapture={handleImageErrorCapture}
               dangerouslySetInnerHTML={{ __html: renderMarkdown(cleanContent) }}
             />

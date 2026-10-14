@@ -26,7 +26,7 @@ export const MemoryEditor: React.FC<MemoryEditorProps> = ({
   onBackToList,
 }) => {
   return (
-    <main className={`flex flex-col h-full overflow-hidden bg-syndae-950 select-none ${className || 'flex-1'}`}>
+    <main className={`flex flex-col h-full overflow-hidden bg-syndae-950 select-text ${className || 'flex-1'}`}>
       {/* Editor Toolbar */}
       <div className="p-2 sm:p-2.5 px-3 sm:px-4 border-b border-syndae-800 bg-syndae-900/80 flex items-center justify-between gap-2 font-mono flex-shrink-0">
         <div className="flex items-center space-x-1.5 sm:space-x-2 min-w-0">

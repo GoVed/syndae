@@ -100,7 +100,7 @@ export const App: React.FC = () => {
 
   return (
     <div
-      className="h-screen w-screen w-full max-w-full overflow-hidden bg-syndae-950 text-slate-100 flex flex-col font-sans select-none"
+      className="h-screen w-screen w-full max-w-full overflow-hidden bg-syndae-950 text-slate-100 flex flex-col font-sans select-text"
       style={{ height: 'var(--app-height, 100svh)', maxHeight: 'var(--app-height, 100svh)' }}
     >
       {/* 1. Optional Hardware Vitals Strip */}

@@ -73,6 +73,8 @@
     font-family: var(--font-sans);
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    user-select: text;
+    -webkit-user-select: text;
   }
 
   #root {
@@ -86,6 +88,8 @@
     overscroll-behavior: none;
     display: flex;
     flex-direction: column;
+    user-select: text;
+    -webkit-user-select: text;
   }
 }
 
@@ -152,6 +156,8 @@
   min-width: 0;
   overflow-wrap: break-word;
   word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .prose h1, .prose h2, .prose h3, .prose h4 {
@@ -431,4 +437,41 @@
   background-clip: text;
   animation: smooth-shimmer-sweep 2.8s linear infinite;
 }
+
+/* Explicit text selection utilities */
+.select-text {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+/* Interactive Markdown Table controls & drag resizing */
+body.table-resizing {
+  cursor: col-resize !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+.table-col-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+  z-index: 25;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.table-col-resizer:hover,
+th.resizing .table-col-resizer {
+  background-color: var(--theme-accent, #10b981);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+}
+
+.interactive-table th.resizing {
+  user-select: none !important;
+}
+
 

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { renderMarkdown } from '../components/ChatView';
+import { tableElementToMarkdown } from '../components/chat/tableResizer';
 
 describe('Markdown Parsing & Typography Rendering Tests', () => {
   it('converts # and ## headers into styled <h1> and <h2> HTML elements', () => {
@@ -125,5 +126,55 @@ describe('Markdown Parsing & Typography Rendering Tests', () => {
     expect(link?.getAttribute('title')).toContain(destination);
     expect(link?.textContent).toContain('Summer Catalog');
     expect(link?.getAttribute('target')).toBe('_blank');
+  });
+
+  it('renders markdown tables with interactive toolbar and draggable column resizers', () => {
+    const input = '| Item | Price | Status |\n| --- | --- | --- |\n| Widget | $10 | In Stock |\n| Gadget | $25 | Out of Stock |';
+    const html = renderMarkdown(input);
+
+    const { container } = render(<div dangerouslySetInnerHTML={{ __html: html }} />);
+    const tableContainer = container.querySelector('.interactive-table-container');
+    const toolbar = container.querySelector('.table-toolbar');
+    const copyBtn = container.querySelector('.table-copy-btn');
+    const resetBtn = container.querySelector('.table-reset-btn');
+    const expandBtn = container.querySelector('.table-expand-btn');
+    const resizers = container.querySelectorAll('.table-col-resizer');
+    const scrollWrapper = container.querySelector('.table-scroll-wrapper');
+    const table = container.querySelector('table');
+
+    expect(tableContainer).toBeInTheDocument();
+    expect(toolbar).toBeInTheDocument();
+    expect(copyBtn).toBeInTheDocument();
+    expect(resetBtn).toBeInTheDocument();
+    expect(expandBtn).toBeInTheDocument();
+    expect(scrollWrapper).toBeInTheDocument();
+    expect(table).toBeInTheDocument();
+    expect(resizers.length).toBe(3); // One per th
+
+    const ths = container.querySelectorAll('th');
+    expect(ths.length).toBe(3);
+    expect(ths[0].textContent).toContain('Item');
+    expect(ths[1].textContent).toContain('Price');
+    expect(ths[2].textContent).toContain('Status');
+
+    const tds = container.querySelectorAll('td');
+    expect(tds.length).toBe(6);
+    expect(tds[0].textContent).toBe('Widget');
+    expect(tds[1].textContent).toBe('$10');
+    expect(tds[2].textContent).toBe('In Stock');
+  });
+
+  it('converts table DOM element back into markdown via tableElementToMarkdown', () => {
+    const input = '| Product | Rating |\n| --- | --- |\n| Alpha | 4.8 |\n| Beta | 4.2 |';
+    const html = renderMarkdown(input);
+
+    const { container } = render(<div dangerouslySetInnerHTML={{ __html: html }} />);
+    const table = container.querySelector('table');
+    expect(table).toBeInTheDocument();
+
+    const exportedMd = tableElementToMarkdown(table as HTMLTableElement);
+    expect(exportedMd).toContain('| Product | Rating |');
+    expect(exportedMd).toContain('| Alpha | 4.8 |');
+    expect(exportedMd).toContain('| Beta | 4.2 |');
   });
 });

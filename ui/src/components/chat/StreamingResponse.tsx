@@ -83,7 +83,7 @@ export const StreamingResponse: React.FC<StreamingResponseProps> = ({
             )}
           </button>
           {thoughtExpanded && (
-            <div className="whitespace-pre-wrap text-purple-200/90 leading-relaxed max-h-48 overflow-y-auto pt-2.5 mt-2 border-t border-purple-900/30 text-xs bg-syndae-950/80 p-2.5 rounded-lg font-mono">
+            <div className="whitespace-pre-wrap text-purple-200/90 leading-relaxed max-h-48 overflow-y-auto pt-2.5 mt-2 border-t border-purple-900/30 text-xs bg-syndae-950/80 p-2.5 rounded-lg font-mono select-text">
               {activeThought}
             </div>
           )}
@@ -92,9 +92,9 @@ export const StreamingResponse: React.FC<StreamingResponseProps> = ({
 
       {/* Streaming Content */}
       {activeStreamingText && (
-        <div className="max-w-3xl rounded-2xl rounded-tl-sm p-4 sm:p-4.5 bg-syndae-900/90 text-slate-200 border border-syndae-800/80 text-[13.5px] leading-relaxed shadow-lg shadow-black/20 backdrop-blur-md">
+        <div className="max-w-3xl rounded-2xl rounded-tl-sm p-4 sm:p-4.5 bg-syndae-900/90 text-slate-200 border border-syndae-800/80 text-[13.5px] leading-relaxed shadow-lg shadow-black/20 backdrop-blur-md select-text">
           <div
-            className="prose max-w-none break-words"
+            className="prose max-w-none break-words select-text"
             dangerouslySetInnerHTML={{ __html: renderMarkdown(activeStreamingText) }}
           />
         </div>

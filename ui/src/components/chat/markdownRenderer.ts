@@ -1,4 +1,5 @@
 import { marked } from 'marked';
+import { renderInteractiveTable } from './tableResizer';
 
 export const resolveImageUrl = (img: string): string => {
   if (!img || typeof img !== 'string') return '';
@@ -129,17 +130,46 @@ marked.use({
           : rawText.trim().replace(/^\[|\]$/g, '');
 
         return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 my-0.5 rounded-lg bg-syndae-900 border border-syndae-700/70 text-xs font-mono group/url select-text align-middle max-w-full">
-  <a href="${escapedHref}" target="_blank" rel="noopener noreferrer" title="${escapedTitle}" class="text-emerald-400 hover:text-emerald-300 hover:underline flex items-center gap-1 min-w-0 max-w-[260px] sm:max-w-[340px] truncate">
-    <span class="truncate">${displayLabel}</span>
-    <span class="text-[10px] opacity-70 group-hover/url:opacity-100 shrink-0">↗</span>
+  <a href="${escapedHref}" target="_blank" rel="noopener noreferrer" title="${escapedTitle}" class="text-emerald-400 hover:text-emerald-300 hover:underline flex items-center gap-1 min-w-0 max-w-[260px] sm:max-w-[340px] truncate cursor-pointer pointer-events-auto select-text">
+    <span class="truncate pointer-events-none">${displayLabel}</span>
+    <span class="text-[10px] opacity-70 group-hover/url:opacity-100 shrink-0 pointer-events-none">↗</span>
   </a>
-  <button type="button" title="Copy full URL" data-url="${escapedHref}" onclick="navigator.clipboard.writeText('${escapedJs}'); const el = this; el.classList.add('text-emerald-400'); setTimeout(() => el.classList.remove('text-emerald-400'), 1500);" class="copy-url-btn text-slate-400 hover:text-slate-200 text-[10px] p-0.5 transition-colors focus:outline-none shrink-0" aria-label="Copy URL">
-    <svg class="w-3 h-3 copy-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+  <button type="button" title="Copy full URL" data-url="${escapedHref}" class="copy-url-btn text-slate-400 hover:text-slate-200 text-[10px] p-0.5 transition-colors focus:outline-none shrink-0 cursor-pointer pointer-events-auto" aria-label="Copy URL">
+    <svg class="w-3 h-3 copy-icon pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
   </button>
 </span>`;
       }
 
-      return `<a href="${escapedHref}" target="_blank" rel="noopener noreferrer" title="${escapedTitle}" class="text-emerald-400 hover:underline inline-flex items-center gap-0.5">${rawText}<span class="text-[10px] opacity-70">↗</span></a>`;
+      return `<a href="${escapedHref}" target="_blank" rel="noopener noreferrer" title="${escapedTitle}" class="text-emerald-400 hover:underline inline-flex items-center gap-0.5 cursor-pointer pointer-events-auto select-text">${rawText}<span class="text-[10px] opacity-70 pointer-events-none">↗</span></a>`;
+    },
+    table(this: any, token: any) {
+      let headerCells = '';
+      if (token && Array.isArray(token.header)) {
+        for (let j = 0; j < token.header.length; j++) {
+          const cell = token.header[j];
+          const content = this.parser.parseInline(cell.tokens || []);
+          const alignAttr = cell.align ? ` align="${cell.align}"` : '';
+          headerCells += `<th${alignAttr}>${content}</th>`;
+        }
+      }
+      const headerHtml = `<tr>${headerCells}</tr>`;
+
+      let bodyHtml = '';
+      if (token && Array.isArray(token.rows)) {
+        for (let j = 0; j < token.rows.length; j++) {
+          const row = token.rows[j];
+          let rowCells = '';
+          for (let k = 0; k < row.length; k++) {
+            const cell = row[k];
+            const content = this.parser.parseInline(cell.tokens || []);
+            const alignAttr = cell.align ? ` align="${cell.align}"` : '';
+            rowCells += `<td${alignAttr}>${content}</td>`;
+          }
+          bodyHtml += `<tr>${rowCells}</tr>`;
+        }
+      }
+
+      return renderInteractiveTable(headerHtml, bodyHtml);
     },
     image({ href, title, text }: { href: string; title?: string | null; text: string }) {
       const resolvedHref = resolveImageUrl(href);
