@@ -56,6 +56,38 @@ export const isImageUrl = (url: string): boolean => {
   return false;
 };
 
+export const formatShortUrl = (url: string): string => {
+  if (!url || typeof url !== 'string') return '';
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, '');
+    let path = parsed.pathname;
+    if (path === '/' || path === '') {
+      return host;
+    }
+    path = path.replace(/\/$/, '');
+    if (path.length > 20) {
+      const parts = path.split('/').filter(Boolean);
+      if (parts.length > 0) {
+        path = '/' + parts[0];
+      }
+    }
+    const combined = host + path;
+    if (combined.length > 34) {
+      return combined.slice(0, 32) + '…';
+    }
+    return combined;
+  } catch {
+    return url.length > 34 ? url.slice(0, 32) + '…' : url;
+  }
+};
+
+const escapeAttr = (str: string): string =>
+  str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+const escapeJs = (str: string): string =>
+  str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
 marked.setOptions({
   breaks: true,
   gfm: true,
@@ -81,8 +113,33 @@ marked.use({
 </div>`;
       }
 
-      const titleAttr = title ? ` title="${title}"` : '';
-      return `<a href="${href}" target="_blank" rel="noopener noreferrer"${titleAttr} class="text-emerald-400 hover:underline">${text}</a>`;
+      const rawHref = href || '';
+      const rawText = text || '';
+      const isUrlText = /^https?:\/\//i.test(rawText.trim()) || rawText.trim() === rawHref.trim() || (rawText.length > 35 && (rawText.includes('?') || rawText.includes('=')));
+      const isLinkRef = /^(?:\[)?Link\s*#\d+/i.test(rawText.trim());
+
+      const escapedHref = escapeAttr(rawHref);
+      const escapedJs = escapeJs(rawHref);
+      const fullTooltip = title ? `${title} (${rawHref})` : rawHref;
+      const escapedTitle = escapeAttr(fullTooltip);
+
+      if (isUrlText || isLinkRef) {
+        const displayLabel = isUrlText
+          ? formatShortUrl(rawHref || rawText)
+          : rawText.trim().replace(/^\[|\]$/g, '');
+
+        return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 my-0.5 rounded-lg bg-syndae-900 border border-syndae-700/70 text-xs font-mono group/url select-text align-middle max-w-full">
+  <a href="${escapedHref}" target="_blank" rel="noopener noreferrer" title="${escapedTitle}" class="text-emerald-400 hover:text-emerald-300 hover:underline flex items-center gap-1 min-w-0 max-w-[260px] sm:max-w-[340px] truncate">
+    <span class="truncate">${displayLabel}</span>
+    <span class="text-[10px] opacity-70 group-hover/url:opacity-100 shrink-0">↗</span>
+  </a>
+  <button type="button" title="Copy full URL" data-url="${escapedHref}" onclick="navigator.clipboard.writeText('${escapedJs}'); const el = this; el.classList.add('text-emerald-400'); setTimeout(() => el.classList.remove('text-emerald-400'), 1500);" class="copy-url-btn text-slate-400 hover:text-slate-200 text-[10px] p-0.5 transition-colors focus:outline-none shrink-0" aria-label="Copy URL">
+    <svg class="w-3 h-3 copy-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+  </button>
+</span>`;
+      }
+
+      return `<a href="${escapedHref}" target="_blank" rel="noopener noreferrer" title="${escapedTitle}" class="text-emerald-400 hover:underline inline-flex items-center gap-0.5">${rawText}<span class="text-[10px] opacity-70">↗</span></a>`;
     },
     image({ href, title, text }: { href: string; title?: string | null; text: string }) {
       const resolvedHref = resolveImageUrl(href);

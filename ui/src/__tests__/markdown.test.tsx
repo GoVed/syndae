@@ -79,4 +79,51 @@ describe('Markdown Parsing & Typography Rendering Tests', () => {
     expect(renderMarkdown(null as any)).toBe('');
     expect(renderMarkdown(undefined as any)).toBe('');
   });
+
+  it('shortens bare promotional URLs into clean link pills while keeping full link accessible in href and title', () => {
+    const longPromoUrl = 'https://marketing.store.com/click/track?utm_source=spring_sale&utm_medium=email&utm_campaign=super_sale_2026_xyz&token=ab1823791823791823791823791823791823791823';
+    const input = `Check out our big sale: ${longPromoUrl}`;
+    const html = renderMarkdown(input);
+
+    const { container } = render(<div dangerouslySetInnerHTML={{ __html: html }} />);
+    const link = container.querySelector('a');
+    const copyBtn = container.querySelector('.copy-url-btn');
+
+    expect(link).toBeInTheDocument();
+    expect(link?.getAttribute('href')).toBe(longPromoUrl);
+    expect(link?.getAttribute('title')).toContain(longPromoUrl);
+    expect(link?.textContent).toContain('marketing.store.com/click');
+    expect(link?.textContent).not.toContain('utm_source=spring_sale'); // Shortened in UI!
+
+    expect(copyBtn).toBeInTheDocument();
+    expect(copyBtn?.getAttribute('data-url')).toBe(longPromoUrl);
+  });
+
+  it('renders shortened email link references [Link #1: ...] as interactive link pills', () => {
+    const redirectUrl = 'http://localhost:8771/links/work/42/1';
+    const input = `Here is the deal: [Link #1: store.com/deals](${redirectUrl})`;
+    const html = renderMarkdown(input);
+
+    const { container } = render(<div dangerouslySetInnerHTML={{ __html: html }} />);
+    const link = container.querySelector('a');
+
+    expect(link).toBeInTheDocument();
+    expect(link?.getAttribute('href')).toBe(redirectUrl);
+    expect(link?.textContent).toContain('Link #1: store.com/deals');
+  });
+
+  it('renders human text markdown links with full URL accessible via tooltip and external target', () => {
+    const destination = 'https://store.com/catalog/summer';
+    const input = `Visit [Summer Catalog](${destination}) now.`;
+    const html = renderMarkdown(input);
+
+    const { container } = render(<div dangerouslySetInnerHTML={{ __html: html }} />);
+    const link = container.querySelector('a');
+
+    expect(link).toBeInTheDocument();
+    expect(link?.getAttribute('href')).toBe(destination);
+    expect(link?.getAttribute('title')).toContain(destination);
+    expect(link?.textContent).toContain('Summer Catalog');
+    expect(link?.getAttribute('target')).toBe('_blank');
+  });
 });
