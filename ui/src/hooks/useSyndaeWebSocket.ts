@@ -7,6 +7,7 @@ export interface WebSocketHandlers {
   onApprovalResolved: (ticketId: string) => void;
   onChatEvent: (event: any, sessionId?: string) => void;
   onNotification?: (notification: any) => void;
+  onThemeUpdated?: (theme: any) => void;
   onAuthEvent: () => void;
 }
 
@@ -37,8 +38,13 @@ export const useSyndaeWebSocket = (handlers: WebSocketHandlers) => {
           handlersRef.current.onApprovalTicket(payload);
         } else if (topic === 'approval_resolved') {
           handlersRef.current.onApprovalResolved(payload.ticket_id);
+        } else if (topic === 'theme_updated') {
+          handlersRef.current.onThemeUpdated?.(data.theme || payload);
         } else if (topic === 'chat_event') {
           handlersRef.current.onChatEvent(data.event, data.session_id);
+          if (data.event?.type === 'theme_updated' && data.event.theme) {
+            handlersRef.current.onThemeUpdated?.(data.event.theme);
+          }
           if (data.event?.type === 'notification') {
             handlersRef.current.onNotification?.({
               id: `notif-${Date.now()}`,

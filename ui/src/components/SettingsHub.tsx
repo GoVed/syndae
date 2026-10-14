@@ -1,25 +1,23 @@
 import React, { useState } from 'react';
 import {
-  Cpu,
-  BookOpen,
-  Layers,
-  Activity,
-  Shield,
-  Sparkles,
   Lock,
   KeyRound,
   ChevronRight,
   ArrowLeft,
   Search,
+  Shield,
 } from 'lucide-react';
 import { DeviceDiagnosticsView } from './settings/DeviceDiagnosticsView';
 import { ChangePasswordView } from './settings/ChangePasswordView';
+import { ThemeSettingsView } from './settings/ThemeSettingsView';
+import { buildSettingsMenuItems } from './settings/settingsMenuItems';
 import {
   SystemTelemetry,
   AuthStatus,
   ModelConfigRecord,
   ContainerSummaryInfo,
   McpTool,
+  UiThemeConfig,
 } from '../types';
 
 interface SettingsHubProps {
@@ -29,6 +27,11 @@ interface SettingsHubProps {
   containers?: ContainerSummaryInfo[];
   mcpTools?: McpTool[];
   pendingTicketsCount?: number;
+  theme?: UiThemeConfig;
+  canUndoTheme?: boolean;
+  onUpdateTheme?: (partial: Partial<UiThemeConfig>) => void;
+  onResetTheme?: () => void;
+  onUndoTheme?: () => void;
   onNavigate?: (view: 'chat' | 'models' | 'memory' | 'tools' | 'diagnostics') => void;
   onNavigateSection?: (section: string) => void;
   onLock?: () => void;
@@ -45,6 +48,11 @@ export const SettingsHub: React.FC<SettingsHubProps> = ({
   containers = [],
   mcpTools = [],
   pendingTicketsCount = 0,
+  theme,
+  canUndoTheme = false,
+  onUpdateTheme,
+  onResetTheme,
+  onUndoTheme,
   onNavigate,
   onNavigateSection,
   onLock,
@@ -54,7 +62,7 @@ export const SettingsHub: React.FC<SettingsHubProps> = ({
   onPasswordChanged,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [subView, setSubView] = useState<'main' | 'diagnostics' | 'password'>('main');
+  const [subView, setSubView] = useState<'main' | 'diagnostics' | 'password' | 'theme'>('main');
 
   const handleNav = (dest: 'chat' | 'models' | 'memory' | 'tools' | 'diagnostics') => {
     if (dest === 'diagnostics') {
@@ -78,73 +86,19 @@ export const SettingsHub: React.FC<SettingsHubProps> = ({
   const tokSec = telemetry?.tokens_per_second ?? 0;
   const gpu = telemetry?.gpu;
 
-  const menuItems = [
-    {
-      id: 'models',
-      title: 'AI Voice & Intelligence',
-      subtitle: `Active: ${activeModel.split(':')[0]?.replace('QuantTrio/', '') || 'Smart Assistant'} • AI engine is running smoothly`,
-      icon: Cpu,
-      color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-      badge: 'Engine',
-      action: () => handleNav('models'),
-    },
-    {
-      id: 'memory',
-      title: 'Memory & What I Know About You',
-      subtitle: 'Your personal preferences, learned habits, and notes',
-      icon: BookOpen,
-      color: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-      badge: 'Memory',
-      action: () => handleNav('memory'),
-    },
-    {
-      id: 'tools',
-      title: 'Connected Apps & Assistants',
-      subtitle: `${mcpTools.length} connected daemon${mcpTools.length === 1 ? '' : 's'} registered in MCP tool catalog`,
-      icon: Layers,
-      color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-      badge: 'Apps',
-      action: () => handleNav('tools'),
-    },
-    {
-      id: 'diagnostics',
-      title: 'Device Health & Performance',
-      subtitle: `Processor ${cpu.toFixed(0)}% • Memory ${memPct.toFixed(0)}% • Speed: ${tokSec.toFixed(0)} words/sec`,
-      icon: Activity,
-      color: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-      badge: 'Vitals',
-      action: () => setSubView('diagnostics'),
-    },
-    {
-      id: 'security',
-      title: 'Privacy & Safety Approvals',
-      subtitle: `Safe Mode Active: Syndae always asks your permission before sending anything`,
-      icon: Shield,
-      color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      badge: 'Safe',
-      action: () => (onOpenAudit ? onOpenAudit() : handleNav('chat')),
-    },
-    {
-      id: 'password',
-      title: 'Master Access Key & Password',
-      subtitle: 'Change your device unlock password and manage enclave access credentials',
-      icon: KeyRound,
-      color: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-      badge: 'Security',
-      action: () => setSubView('password'),
-    },
-    {
-      id: 'onboarding',
-      title: 'Personal Setup & Preferences',
-      subtitle: authStatus?.onboarded
-        ? 'Update how Syndae talks, your daily routine, and what to remember'
-        : 'Get started: Tell Syndae how you would like to be helped',
-      icon: Sparkles,
-      color: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
-      badge: authStatus?.onboarded ? 'Profile' : 'Setup',
-      action: () => (onStartOnboarding ? onStartOnboarding() : handleNav('chat')),
-    },
-  ];
+  const menuItems = buildSettingsMenuItems({
+    activeModel,
+    mcpTools,
+    cpu,
+    memPct,
+    tokSec,
+    onboarded: !!authStatus?.onboarded,
+    theme,
+    handleNav,
+    setSubView,
+    onOpenAudit,
+    onStartOnboarding,
+  });
 
   const filteredItems = searchQuery.trim()
     ? menuItems.filter(
@@ -181,6 +135,8 @@ export const SettingsHub: React.FC<SettingsHubProps> = ({
                   ? 'Device Health & Speed'
                   : subView === 'password'
                   ? 'Master Password & Security'
+                  : subView === 'theme'
+                  ? 'Appearance & UI Theme'
                   : 'Assistant Settings'}
               </span>
             </h1>
@@ -189,6 +145,8 @@ export const SettingsHub: React.FC<SettingsHubProps> = ({
                 ? 'Live device performance and responsiveness'
                 : subView === 'password'
                 ? 'Update your device enclave unlock credentials'
+                : subView === 'theme'
+                ? 'Personalize colors, background palettes, and layout density'
                 : 'Manage your preferences, memory, and apps'}
             </p>
           </div>
@@ -331,6 +289,18 @@ export const SettingsHub: React.FC<SettingsHubProps> = ({
             telemetry={telemetry}
             onBack={() => setSubView('main')}
             onOpenAudit={() => (onOpenAudit ? onOpenAudit() : handleNav('chat'))}
+          />
+        ) : subView === 'theme' ? (
+          <ThemeSettingsView
+            theme={theme || {
+              mode: 'dark', preset: 'syndae_dark', accent_color: '#10b981', bg_shade: 'midnight',
+              border_radius: 'rounded', font_family: 'sans', bubble_style: 'modern', density: 'comfortable',
+              agent_can_adjust: true, updated_by: 'user', updated_at: new Date().toISOString()
+            }}
+            canUndo={canUndoTheme}
+            onUpdateTheme={onUpdateTheme || (() => {})}
+            onResetTheme={onResetTheme || (() => {})}
+            onUndoTheme={onUndoTheme || (() => {})}
           />
         ) : (
           <ChangePasswordView

@@ -32,7 +32,7 @@ impl PolicyTier {
         let n = name.to_lowercase();
 
         // Safe autonomous internal tools
-        if n == "write_memory" || n == "complete_onboarding" || n == "read_memory" || n == "search_memory" || n == "inspect_image" {
+        if n == "write_memory" || n == "complete_onboarding" || n == "read_memory" || n == "search_memory" || n == "inspect_image" || n == "configure_ui_theme" {
             return (PolicyTier::Autonomous, "LOW");
         }
 

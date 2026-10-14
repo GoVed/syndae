@@ -212,6 +212,13 @@ impl AgentRunner {
                         let _ = self.db.set_setting("onboarding_completed", "true").await;
                         let _ = event_tx.send(AgentEvent::OnboardingCompleted).await;
                     }
+                    if tool_name == "configure_ui_theme" && res.success {
+                        if let Ok(Some(raw)) = self.db.get_setting("ui_theme_config").await {
+                            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw) {
+                                let _ = event_tx.send(AgentEvent::ThemeUpdated { theme: val }).await;
+                            }
+                        }
+                    }
                     (res.content, res.success, "completed")
                 } else {
                     had_tool_rejection = true;

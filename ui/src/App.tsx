@@ -12,6 +12,7 @@ import { MobileNav } from './components/navigation/MobileNav';
 import { OnboardingBanner } from './components/navigation/OnboardingBanner';
 import { SubViewBackBanner } from './components/navigation/SubViewBackBanner';
 import { NotificationToast } from './components/navigation/NotificationToast';
+import { ThemeNotificationToast } from './components/navigation/ThemeNotificationToast';
 import { useSyndaeApp } from './hooks/useSyndaeApp';
 
 export const App: React.FC = () => {
@@ -29,6 +30,13 @@ export const App: React.FC = () => {
     setAuditOpen,
     activeNotification,
     dismissNotification,
+    theme,
+    canUndoTheme,
+    agentThemeNotification,
+    updateTheme,
+    resetTheme,
+    undoTheme,
+    dismissAgentThemeNotification,
     sessions,
     activeSession,
     setActiveSession,
@@ -186,6 +194,11 @@ export const App: React.FC = () => {
             containers={containers}
             mcpTools={mcpTools}
             pendingTicketsCount={pendingTickets.length}
+            theme={theme}
+            canUndoTheme={canUndoTheme}
+            onUpdateTheme={updateTheme}
+            onResetTheme={resetTheme}
+            onUndoTheme={undoTheme}
             onNavigate={(view) => {
               if (view === 'diagnostics') {
                 setActiveTab('settings');
@@ -247,6 +260,14 @@ export const App: React.FC = () => {
           onSelectTab={setActiveTab}
         />
       )}
+
+      {/* 5. Autonomous Agent Theme Adjustment Notification with Undo */}
+      <ThemeNotificationToast
+        notification={agentThemeNotification}
+        onUndo={undoTheme}
+        onDismiss={dismissAgentThemeNotification}
+        onOpenSettings={() => setActiveTab('settings')}
+      />
     </div>
   );
 };

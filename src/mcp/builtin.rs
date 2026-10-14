@@ -145,5 +145,60 @@ pub fn get_builtin_tools() -> Vec<McpTool> {
             policy: PolicyTier::Autonomous,
             risk_level: "LOW".to_string(),
         },
+        McpTool {
+            name: "configure_ui_theme".to_string(),
+            description: "Personalize the Syndae user interface colors, themes, background palettes, and styling to suit the operator's aesthetic preferences, mood, or environment. All changes are validated for contrast and safety, and can be undone or reset by the operator anytime.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "preset": {
+                        "type": "string",
+                        "enum": ["syndae_dark", "cyber_neon", "tokyo_night", "nordic_frost", "amber_glow", "rose_quartz", "monochrome_oled", "emerald_matrix", "solarized_dark", "custom"],
+                        "description": "Optional curated theme preset name"
+                    },
+                    "accent_color": {
+                        "type": "string",
+                        "description": "Hex color code for highlights, action buttons, and active indicators (e.g. '#10b981', '#06b6d4', '#818cf8', '#f59e0b', '#f43f5e')"
+                    },
+                    "bg_shade": {
+                        "type": "string",
+                        "enum": ["midnight", "oled", "navy", "slate", "charcoal", "zinc"],
+                        "description": "Background hue/shade palette"
+                    },
+                    "theme_mode": {
+                        "type": "string",
+                        "enum": ["dark", "light"],
+                        "description": "Theme mode (dark or light)"
+                    },
+                    "border_radius": {
+                        "type": "string",
+                        "enum": ["sharp", "rounded", "curved"],
+                        "description": "Corner roundness style"
+                    },
+                    "font_family": {
+                        "type": "string",
+                        "enum": ["sans", "mono", "system"],
+                        "description": "Typography font family"
+                    },
+                    "bubble_style": {
+                        "type": "string",
+                        "enum": ["modern", "minimal", "glass"],
+                        "description": "Chat bubble visual appearance style"
+                    },
+                    "density": {
+                        "type": "string",
+                        "enum": ["comfortable", "compact", "spacious"],
+                        "description": "UI layout density"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "Brief explanation of why this theme was chosen (e.g. 'Switched to cyber neon for operator dark theme preference')"
+                    }
+                }
+            }),
+            server_id: None,
+            policy: PolicyTier::Autonomous,
+            risk_level: "LOW".to_string(),
+        },
     ]
 }

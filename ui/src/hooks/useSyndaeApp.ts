@@ -8,6 +8,7 @@ import {
 import { useAuxiliaryData } from './useAuxiliaryData';
 import { useSyndaeWebSocket } from './useSyndaeWebSocket';
 import { useChatState } from './useChatState';
+import { useTheme } from './useTheme';
 import {
   NotificationPayload,
   playNotificationChime,
@@ -35,6 +36,9 @@ export const useSyndaeApp = () => {
     setAuthStatus,
     setPendingTickets,
   });
+
+  // UI Theme, appearance customization, and undo history
+  const themeState = useTheme();
 
   const fetchInitialData = useCallback(async () => {
     try {
@@ -99,6 +103,7 @@ export const useSyndaeApp = () => {
       setPendingTickets(prev => prev.filter(t => t.ticket_id !== ticketId));
       setActiveNotification(prev => (prev?.id === `ticket-${ticketId}` ? null : prev));
     },
+    onThemeUpdated: themeState.handleRemoteThemeUpdate,
     onChatEvent: chat.handleIncomingChatEvent,
     onNotification: notif => {
       // Only chime and trigger OS push/vibrate for actionable or urgent notifications
@@ -270,6 +275,13 @@ export const useSyndaeApp = () => {
     setAuditOpen,
     activeNotification,
     dismissNotification: () => setActiveNotification(null),
+    theme: themeState.theme,
+    canUndoTheme: themeState.canUndo,
+    agentThemeNotification: themeState.agentNotification,
+    updateTheme: themeState.updateTheme,
+    resetTheme: themeState.resetTheme,
+    undoTheme: themeState.undoTheme,
+    dismissAgentThemeNotification: themeState.dismissAgentNotification,
     ...chat,
     ...aux,
     handleResolveTicket,

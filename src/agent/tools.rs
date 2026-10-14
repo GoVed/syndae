@@ -263,6 +263,9 @@ impl<'a> AgentToolExecutor<'a> {
                     },
                 }
             }
+            "configure_ui_theme" => {
+                crate::api::theme::apply_agent_theme_update(self.db, args).await
+            }
             _ => {
                 // External MCP tool call
                 match self.mcp.call_external_tool(name, args).await {

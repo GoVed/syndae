@@ -1,42 +1,59 @@
 @import "tailwindcss";
 
+:root {
+  --theme-bg-950: #090b10;
+  --theme-bg-900: #0f121b;
+  --theme-bg-850: #151926;
+  --theme-bg-800: #1d2335;
+  --theme-bg-750: #252c42;
+  --theme-bg-700: #2f3854;
+  --theme-bg-600: #414c72;
+  --theme-bg-500: #5a6898;
+  --theme-accent: #10b981;
+  --theme-accent-hover: #059669;
+  --theme-accent-light: #34d399;
+  --theme-accent-glow: rgba(16, 185, 129, 0.15);
+  --theme-radius: 0.625rem;
+  --theme-font: "Plus Jakarta Sans", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
 @theme {
-  --color-syndae-950: #090b10;
-  --color-syndae-900: #0f121b;
-  --color-syndae-850: #151926;
-  --color-syndae-800: #1d2335;
-  --color-syndae-750: #252c42;
-  --color-syndae-700: #2f3854;
-  --color-syndae-600: #414c72;
-  --color-syndae-500: #5a6898;
-  --color-syndae-accent: #10b981;
+  --color-syndae-950: var(--theme-bg-950);
+  --color-syndae-900: var(--theme-bg-900);
+  --color-syndae-850: var(--theme-bg-850);
+  --color-syndae-800: var(--theme-bg-800);
+  --color-syndae-750: var(--theme-bg-750);
+  --color-syndae-700: var(--theme-bg-700);
+  --color-syndae-600: var(--theme-bg-600);
+  --color-syndae-500: var(--theme-bg-500);
+  --color-syndae-accent: var(--theme-accent);
   --color-syndae-danger: #f43f5e;
   --color-syndae-warning: #f59e0b;
   --color-syndae-info: #38bdf8;
 
-  --font-sans: "Plus Jakarta Sans", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--theme-font);
   --font-mono: "JetBrains Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
 }
 
-/* Explicit fallback definitions ensuring non-transparent backgrounds & borders */
-.bg-syndae-950 { background-color: #090b10; }
-.bg-syndae-900 { background-color: #0f121b; }
-.bg-syndae-850 { background-color: #151926; }
-.bg-syndae-800 { background-color: #1d2335; }
-.bg-syndae-750 { background-color: #252c42; }
-.bg-syndae-700 { background-color: #2f3854; }
-.bg-syndae-600 { background-color: #414c72; }
-.bg-syndae-500 { background-color: #5a6898; }
+/* Explicit fallback definitions ensuring dynamic CSS variables for theme customization */
+.bg-syndae-950 { background-color: var(--theme-bg-950); }
+.bg-syndae-900 { background-color: var(--theme-bg-900); }
+.bg-syndae-850 { background-color: var(--theme-bg-850); }
+.bg-syndae-800 { background-color: var(--theme-bg-800); }
+.bg-syndae-750 { background-color: var(--theme-bg-750); }
+.bg-syndae-700 { background-color: var(--theme-bg-700); }
+.bg-syndae-600 { background-color: var(--theme-bg-600); }
+.bg-syndae-500 { background-color: var(--theme-bg-500); }
 
-.border-syndae-950 { border-color: #090b10; }
-.border-syndae-900 { border-color: #0f121b; }
-.border-syndae-850 { border-color: #151926; }
-.border-syndae-800 { border-color: #1d2335; }
-.border-syndae-750 { border-color: #252c42; }
-.border-syndae-700 { border-color: #2f3854; }
-.border-syndae-600 { border-color: #414c72; }
+.border-syndae-950 { border-color: var(--theme-bg-950); }
+.border-syndae-900 { border-color: var(--theme-bg-900); }
+.border-syndae-850 { border-color: var(--theme-bg-850); }
+.border-syndae-800 { border-color: var(--theme-bg-800); }
+.border-syndae-750 { border-color: var(--theme-bg-750); }
+.border-syndae-700 { border-color: var(--theme-bg-700); }
+.border-syndae-600 { border-color: var(--theme-bg-600); }
 
-.text-syndae-accent { color: #10b981; }
+.text-syndae-accent { color: var(--theme-accent); }
 .text-syndae-danger { color: #f43f5e; }
 .text-syndae-warning { color: #f59e0b; }
 .text-syndae-info { color: #38bdf8; }

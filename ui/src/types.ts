@@ -240,5 +240,20 @@ export interface ChannelDefaultsRecord {
   mention_keywords: string;
 }
 
+export interface UiThemeConfig {
+  mode: 'dark' | 'light' | 'system';
+  preset: string;
+  accent_color: string;
+  bg_shade: 'midnight' | 'oled' | 'navy' | 'slate' | 'charcoal' | 'zinc';
+  border_radius: 'sharp' | 'rounded' | 'curved';
+  font_family: 'sans' | 'mono' | 'system';
+  bubble_style: 'modern' | 'minimal' | 'glass';
+  density: 'comfortable' | 'compact' | 'spacious';
+  agent_can_adjust: boolean;
+  updated_by: 'user' | 'syndae';
+  change_reason?: string;
+  updated_at: string;
+}
+
 
 

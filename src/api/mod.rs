@@ -5,6 +5,7 @@ pub mod hitl;
 pub mod memory;
 pub mod models;
 pub mod telemetry;
+pub mod theme;
 pub mod tools;
 pub mod ws;
 
@@ -74,6 +75,7 @@ pub fn build_router(state: AppState) -> Router {
         .nest("/api/tools", tools::router())
         .nest("/api/hitl", hitl::router())
         .nest("/api/audit", audit::router())
+        .nest("/api/theme", theme::router())
         .nest("/ws", ws::router())
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
