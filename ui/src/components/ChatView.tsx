@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bot, Zap, BrainCircuit, Menu, Sparkles, Settings, Pencil } from 'lucide-react';
+import { BrainCircuit, Menu, Sparkles, Settings, Pencil } from 'lucide-react';
 import { ChatMessage } from '../types';
 import {
   extractThoughtAndContent,
@@ -210,36 +210,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 )}
               </div>
             )}
-
-            {/* Mode Switcher */}
-            <div className="flex bg-syndae-950/80 p-0.5 rounded-xl border border-syndae-800/80">
-              <button
-                type="button"
-                onClick={() => setMode('chat')}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 flex items-center space-x-1.5 ${
-                  mode === 'chat'
-                    ? 'bg-emerald-600 text-white font-semibold shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="Conversational Chat Mode"
-              >
-                <Bot className={`w-3.5 h-3.5 ${mode === 'chat' ? 'text-white' : 'text-emerald-400'}`} />
-                <span className="hidden xs:inline">Chat</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('mission')}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 flex items-center space-x-1.5 ${
-                  mode === 'mission'
-                    ? 'bg-amber-600 text-white font-semibold shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="Deep Task Mode"
-              >
-                <Zap className={`w-3.5 h-3.5 ${mode === 'mission' ? 'text-white' : 'text-amber-400'}`} />
-                <span className="hidden xs:inline">Task</span>
-              </button>
-            </div>
           </div>
 
           <div className="flex items-center space-x-1.5 sm:space-x-2">

@@ -70,32 +70,18 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
             </button>
             <span className="text-xs font-semibold text-slate-300 tracking-wider">CHATS</span>
           </div>
-          <div className="flex space-x-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                onCreateSession('chat');
-                onCloseMobileSidebar();
-              }}
-              className="p-1.5 px-2.5 rounded-lg bg-syndae-800 hover:bg-emerald-950/60 text-emerald-300 hover:text-emerald-200 text-xs flex items-center space-x-1.5 border border-syndae-700/80 hover:border-emerald-500/40 transition-all duration-200 active:scale-95 shadow-sm"
-              title="Start new chat"
-            >
-              <Plus className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="font-medium text-[11px]">Chat</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onCreateSession('mission');
-                onCloseMobileSidebar();
-              }}
-              className="p-1.5 px-2.5 rounded-lg bg-syndae-800 hover:bg-amber-950/60 text-amber-300 hover:text-amber-200 text-xs flex items-center space-x-1.5 border border-syndae-700/80 hover:border-amber-500/40 transition-all duration-200 active:scale-95 shadow-sm"
-              title="Start new deep task"
-            >
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span className="font-medium text-[11px]">Task</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              onCreateSession('chat');
+              onCloseMobileSidebar();
+            }}
+            className="p-1.5 px-2.5 rounded-lg bg-syndae-800 hover:bg-emerald-950/60 text-emerald-300 hover:text-emerald-200 text-xs flex items-center space-x-1.5 border border-syndae-700/80 hover:border-emerald-500/40 transition-all duration-200 active:scale-95 shadow-sm font-medium"
+            title="Start new chat"
+          >
+            <Plus className="w-3.5 h-3.5 text-emerald-400" />
+            <span>New Chat</span>
+          </button>
         </div>
 
         {/* Sessions List */}
@@ -104,7 +90,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
             <div className="p-4 text-center text-xs text-slate-500 space-y-1 mt-4">
               <Bot className="w-6 h-6 text-slate-600 mx-auto mb-2 opacity-60" />
               <p className="font-medium text-slate-400">No chats yet</p>
-              <p className="text-[11px]">Start a new chat or task above to begin.</p>
+              <p className="text-[11px]">Start a new chat above to begin.</p>
             </div>
           )}
           {sessions.map(s => {
