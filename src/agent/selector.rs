@@ -106,26 +106,8 @@ pub fn select_active_tools(
         return combined;
     }
 
-    // 3. Otherwise, rank dynamic tools by semantic relevance + keyword overlap
+    // 3. Otherwise, rank dynamic tools by pure semantic embedding similarity
     let query_vec = SemanticEmbedder::fast_semantic_encode(context_text);
-    let mut query_tokens: Vec<String> = context_text
-        .split(|c: char| !c.is_alphanumeric())
-        .filter(|w| w.len() >= 2)
-        .map(|w| w.to_lowercase())
-        .collect();
-
-    // Expand common shorthand into semantic keywords
-    let mut expanded = Vec::new();
-    for tok in &query_tokens {
-        match tok.as_str() {
-            "msg" | "msgs" => expanded.extend(vec!["message".to_string(), "chat".to_string(), "history".to_string()]),
-            "grp" | "grps" => expanded.extend(vec!["group".to_string(), "chat".to_string()]),
-            "pic" | "pics" => expanded.extend(vec!["photo".to_string(), "image".to_string()]),
-            "doc" | "docs" => expanded.push("document".to_string()),
-            _ => {}
-        }
-    }
-    query_tokens.extend(expanded);
 
     let mut scored_dynamic: Vec<(f32, ToolParam)> = dynamic_params
         .into_iter()
@@ -133,19 +115,7 @@ pub fn select_active_tools(
             let tool_desc = format!("{} {}", param.name, param.description);
             let tool_vec = SemanticEmbedder::fast_semantic_encode(&tool_desc);
             let cos = cosine_similarity(&query_vec, &tool_vec);
-            let mut score = ((cos + 1.0) / 2.0).clamp(0.0, 1.0);
-
-            // Keyword boost for each matched token in tool name or description
-            let tool_desc_lower = tool_desc.to_lowercase();
-            let matched_count = query_tokens
-                .iter()
-                .filter(|tok| tool_desc_lower.contains(tok.as_str()))
-                .count();
-
-            if matched_count > 0 {
-                score += (matched_count as f32 * 0.2).min(0.6);
-            }
-
+            let score = ((cos + 1.0) / 2.0).clamp(0.0, 1.0);
             (score, param)
         })
         .collect();
