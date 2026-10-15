@@ -5,10 +5,9 @@ use tokio::sync::mpsc;
 use crate::db::Database;
 use crate::docker::DockerOrchestrator;
 use crate::hitl::HitlGate;
-use crate::mcp::policy::PolicyTier;
 use crate::mcp::{McpRegistry, ToolCallOutput};
 use crate::memory::MemoryManager;
-use crate::router::openai::{ChatMessageParam, ToolParam};
+use crate::router::openai::ChatMessageParam;
 use crate::router::MultiModelRouter;
 use crate::telemetry::TelemetryCollector;
 
@@ -21,6 +20,7 @@ pub mod prompt;
 pub mod queue;
 pub mod reasoning;
 pub mod recovery;
+pub mod selector;
 pub mod tools;
 pub mod types;
 
@@ -211,18 +211,13 @@ impl AgentRunner {
             });
         }
 
-        // Get tools that are NOT blocked
+        // Dynamically select and minify active tools within context budget
         let all_tools = self.mcp.list_tools().await;
-        let mut available_tools = Vec::new();
-        for t in all_tools {
-            if t.policy != PolicyTier::Blocked {
-                available_tools.push(ToolParam {
-                    name: t.name,
-                    description: t.description,
-                    parameters: t.input_schema,
-                });
-            }
-        }
+        let available_tools = selector::select_active_tools(
+            &all_tools,
+            user_prompt,
+            selector::DEFAULT_MAX_TOOLS_BUDGET_TOKENS,
+        );
 
         // Run multi-iteration turn execution loop
         let (raw_response, raw_thought, tool_calls_json) = self

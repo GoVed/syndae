@@ -200,5 +200,22 @@ pub fn get_builtin_tools() -> Vec<McpTool> {
             policy: PolicyTier::Autonomous,
             risk_level: "LOW".to_string(),
         },
+        McpTool {
+            name: "search_tools".to_string(),
+            description: "Search the catalog of installed MCP tools by keyword, intent, or domain to discover available capabilities and their parameter schemas.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Capability keyword, action, or target tool domain"
+                    }
+                },
+                "required": ["query"]
+            }),
+            server_id: None,
+            policy: PolicyTier::Autonomous,
+            risk_level: "LOW".to_string(),
+        },
     ]
 }

@@ -266,6 +266,38 @@ impl<'a> AgentToolExecutor<'a> {
             "configure_ui_theme" => {
                 crate::api::theme::apply_agent_theme_update(self.db, args).await
             }
+            "search_tools" => {
+                let query = args.get("query").and_then(|q| q.as_str()).unwrap_or("").to_lowercase();
+                let all_tools = self.mcp.list_tools().await;
+                let matching: Vec<_> = all_tools
+                    .into_iter()
+                    .filter(|t| {
+                        t.policy != crate::mcp::policy::PolicyTier::Blocked
+                            && (t.name.to_lowercase().contains(&query)
+                                || t.description.to_lowercase().contains(&query))
+                    })
+                    .map(|t| {
+                        serde_json::json!({
+                            "name": t.name,
+                            "description": t.description,
+                            "parameters": t.input_schema,
+                        })
+                    })
+                    .collect();
+
+                let content = if matching.is_empty() {
+                    format!("No tools found matching query: '{}'", query)
+                } else {
+                    serde_json::to_string_pretty(&matching).unwrap_or_default()
+                };
+
+                ToolCallOutput {
+                    tool_name: name.to_string(),
+                    success: true,
+                    content,
+                    is_error: false,
+                }
+            }
             _ => {
                 // External MCP tool call
                 match self.mcp.call_external_tool(name, args).await {
