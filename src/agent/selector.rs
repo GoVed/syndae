@@ -7,6 +7,7 @@ use crate::memory::embeddings::SemanticEmbedder;
 use crate::memory::vector::cosine_similarity;
 use crate::router::openai::ToolParam;
 
+#[allow(dead_code)]
 pub const DEFAULT_MAX_TOOLS_BUDGET_TOKENS: usize = 2048;
 
 /// Recursively strips redundant metadata from JSON schemas ($schema, title, $defs, etc.)
@@ -42,6 +43,29 @@ pub fn mcp_tool_to_param(tool: &McpTool) -> ToolParam {
         name: tool.name.clone(),
         description: tool.description.clone(),
         parameters,
+    }
+}
+
+/// Dynamically injects tools returned by search_tools into active tools for subsequent iterations
+pub fn dynamically_register_discovered_tools(tools_output: &str, available_tools: &mut Vec<ToolParam>) {
+    if let Ok(matched_tools) = serde_json::from_str::<Vec<Value>>(tools_output) {
+        for mt in matched_tools {
+            if let (Some(t_name), Some(desc), Some(params)) = (
+                mt.get("name").and_then(|v| v.as_str()),
+                mt.get("description").and_then(|v| v.as_str()),
+                mt.get("parameters"),
+            ) {
+                if !available_tools.iter().any(|t| t.name == t_name) {
+                    let mut p = params.clone();
+                    minify_tool_schema(&mut p);
+                    available_tools.push(ToolParam {
+                        name: t_name.to_string(),
+                        description: desc.to_string(),
+                        parameters: p,
+                    });
+                }
+            }
+        }
     }
 }
 
@@ -84,11 +108,24 @@ pub fn select_active_tools(
 
     // 3. Otherwise, rank dynamic tools by semantic relevance + keyword overlap
     let query_vec = SemanticEmbedder::fast_semantic_encode(context_text);
-    let query_tokens: Vec<String> = context_text
+    let mut query_tokens: Vec<String> = context_text
         .split(|c: char| !c.is_alphanumeric())
-        .filter(|w| w.len() >= 3)
+        .filter(|w| w.len() >= 2)
         .map(|w| w.to_lowercase())
         .collect();
+
+    // Expand common shorthand into semantic keywords
+    let mut expanded = Vec::new();
+    for tok in &query_tokens {
+        match tok.as_str() {
+            "msg" | "msgs" => expanded.extend(vec!["message".to_string(), "chat".to_string(), "history".to_string()]),
+            "grp" | "grps" => expanded.extend(vec!["group".to_string(), "chat".to_string()]),
+            "pic" | "pics" => expanded.extend(vec!["photo".to_string(), "image".to_string()]),
+            "doc" | "docs" => expanded.push("document".to_string()),
+            _ => {}
+        }
+    }
+    query_tokens.extend(expanded);
 
     let mut scored_dynamic: Vec<(f32, ToolParam)> = dynamic_params
         .into_iter()
@@ -98,11 +135,15 @@ pub fn select_active_tools(
             let cos = cosine_similarity(&query_vec, &tool_vec);
             let mut score = ((cos + 1.0) / 2.0).clamp(0.0, 1.0);
 
-            // Keyword boost if any significant word in query matches tool name or description
+            // Keyword boost for each matched token in tool name or description
             let tool_desc_lower = tool_desc.to_lowercase();
-            let matches_keyword = query_tokens.iter().any(|tok| tool_desc_lower.contains(tok));
-            if matches_keyword {
-                score += 0.35;
+            let matched_count = query_tokens
+                .iter()
+                .filter(|tok| tool_desc_lower.contains(tok.as_str()))
+                .count();
+
+            if matched_count > 0 {
+                score += (matched_count as f32 * 0.2).min(0.6);
             }
 
             (score, param)

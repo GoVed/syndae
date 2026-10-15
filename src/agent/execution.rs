@@ -20,7 +20,7 @@ impl AgentRunner {
         model_cfg: &ModelConfigRecord,
         _user_prompt: &str,
         mut chat_messages: Vec<ChatMessageParam>,
-        available_tools: Vec<ToolParam>,
+        mut available_tools: Vec<ToolParam>,
         is_mission_mode: bool,
         event_tx: &mpsc::Sender<AgentEvent>,
     ) -> Result<(String, String, Option<String>)> {
@@ -249,9 +249,13 @@ impl AgentRunner {
                 }));
 
                 chat_messages.push(ChatMessageParam {
-                    role: "tool".to_string(), content: output,
-                    name: Some(tool_name), tool_call_id: Some(call_id), tool_calls: None, images: None,
+                    role: "tool".to_string(), content: output.clone(),
+                    name: Some(tool_name.clone()), tool_call_id: Some(call_id), tool_calls: None, images: None,
                 });
+
+                if tool_name == "search_tools" && success {
+                    crate::agent::selector::dynamically_register_discovered_tools(&output, &mut available_tools);
+                }
             }
 
             if had_tool_rejection {

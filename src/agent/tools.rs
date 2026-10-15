@@ -268,22 +268,33 @@ impl<'a> AgentToolExecutor<'a> {
             }
             "search_tools" => {
                 let query = args.get("query").and_then(|q| q.as_str()).unwrap_or("").to_lowercase();
+                let terms: Vec<&str> = query
+                    .split(|c: char| !c.is_alphanumeric())
+                    .filter(|w| w.len() >= 3)
+                    .collect();
+
                 let all_tools = self.mcp.list_tools().await;
-                let matching: Vec<_> = all_tools
+                let mut scored: Vec<(usize, serde_json::Value)> = all_tools
                     .into_iter()
-                    .filter(|t| {
-                        t.policy != crate::mcp::policy::PolicyTier::Blocked
-                            && (t.name.to_lowercase().contains(&query)
-                                || t.description.to_lowercase().contains(&query))
-                    })
-                    .map(|t| {
-                        serde_json::json!({
-                            "name": t.name,
-                            "description": t.description,
-                            "parameters": t.input_schema,
-                        })
+                    .filter(|t| t.policy != crate::mcp::policy::PolicyTier::Blocked)
+                    .filter_map(|t| {
+                        let name_lower = t.name.to_lowercase();
+                        let desc_lower = t.description.to_lowercase();
+                        let score = terms.iter().filter(|&&w| name_lower.contains(w) || desc_lower.contains(w)).count();
+                        if score > 0 || name_lower.contains(&query) || desc_lower.contains(&query) {
+                            Some((score, serde_json::json!({
+                                "name": t.name,
+                                "description": t.description,
+                                "parameters": t.input_schema,
+                            })))
+                        } else {
+                            None
+                        }
                     })
                     .collect();
+
+                scored.sort_by(|a, b| b.0.cmp(&a.0));
+                let matching: Vec<_> = scored.into_iter().map(|s| s.1).take(10).collect();
 
                 let content = if matching.is_empty() {
                     format!("No tools found matching query: '{}'", query)

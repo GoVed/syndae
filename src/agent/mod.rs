@@ -213,10 +213,12 @@ impl AgentRunner {
 
         // Dynamically select and minify active tools within context budget
         let all_tools = self.mcp.list_tools().await;
+        let context_len = if model_cfg.context_length > 0 { model_cfg.context_length as usize } else { 16384 };
+        let tools_budget = (context_len / 8).clamp(4096, 12288);
         let available_tools = selector::select_active_tools(
             &all_tools,
             user_prompt,
-            selector::DEFAULT_MAX_TOOLS_BUDGET_TOKENS,
+            tools_budget,
         );
 
         // Run multi-iteration turn execution loop
