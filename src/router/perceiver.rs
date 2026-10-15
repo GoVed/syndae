@@ -11,8 +11,15 @@ pub async fn resolve_vision_endpoint(db: &crate::db::Database) -> (String, Strin
         return (base, key, cfg.model_id);
     }
     if let Ok(Some(active)) = db.get_active_model_config().await {
+        let has_vision = active
+            .extra_flags_json
+            .as_deref()
+            .map(|f| f.contains("\"enable_vision\":true") || f.contains("\"enable_vision\": true"))
+            .unwrap_or(false);
         let lower = active.model_id.to_lowercase();
-        if lower.contains("qwen3.5-9b")
+        if has_vision
+            || lower.contains("qwen3.8")
+            || lower.contains("qwen3.5")
             || lower.contains("qwen2.5-vl")
             || lower.contains("qwen2-vl")
             || active.provider == "anthropic"
