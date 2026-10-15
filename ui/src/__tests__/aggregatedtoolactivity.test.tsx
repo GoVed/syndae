@@ -5,17 +5,17 @@ import { ToolExecutionCard } from '../components/chat/types';
 
 describe('AggregatedToolActivity Component Tests', () => {
   it('formats tool activity into natural human-readable descriptions', () => {
-    const webSearch = formatToolActivity('web_search', { query: 'Mississauga fall colors' });
+    const webSearch = formatToolActivity('web_search', { query: 'Toronto autumn colors' });
     expect(webSearch.friendlyName).toBe('Web Search');
-    expect(webSearch.actionDescription).toBe('Searching the web for "Mississauga fall colors"');
+    expect(webSearch.actionDescription).toBe('Searching the web for "Toronto autumn colors"');
 
     const memoryRead = formatToolActivity('read_memory', { path: '/memory/core/user_profile.md' });
     expect(memoryRead.friendlyName).toBe('Read Memory');
     expect(memoryRead.actionDescription).toContain('user_profile.md');
 
-    const msgSend = formatToolActivity('send_message', { to: 'Het', message: 'Hello' });
+    const msgSend = formatToolActivity('send_message', { to: 'Sarah', message: 'Hello' });
     expect(msgSend.friendlyName).toBe('Send Message');
-    expect(msgSend.actionDescription).toContain('Het');
+    expect(msgSend.actionDescription).toContain('Sarah');
   });
 
   it('renders aggregated single summary bar by default (collapsed for general users)', () => {
@@ -23,7 +23,7 @@ describe('AggregatedToolActivity Component Tests', () => {
       {
         id: '1',
         tool_name: 'web_search',
-        arguments: { query: 'Mississauga fall scenes' },
+        arguments: { query: 'Toronto autumn scenes' },
         status: 'completed',
         output: 'Found 3 photos',
       },
@@ -42,7 +42,7 @@ describe('AggregatedToolActivity Component Tests', () => {
     // Progress counter shows completed / total
     expect(screen.getByText('2/2')).toBeDefined();
     // Timeline steps should NOT be visible by default
-    expect(screen.queryByText(/Query: "Mississauga fall scenes"/i)).toBeNull();
+    expect(screen.queryByText(/Query: "Toronto autumn scenes"/i)).toBeNull();
   });
 
   it('expands detailed timeline when header is clicked', () => {
@@ -50,7 +50,7 @@ describe('AggregatedToolActivity Component Tests', () => {
       {
         id: '1',
         tool_name: 'web_search',
-        arguments: { query: 'Mississauga fall scenes' },
+        arguments: { query: 'Toronto autumn scenes' },
         status: 'completed',
         output: 'Found 3 photos',
       },
@@ -63,7 +63,7 @@ describe('AggregatedToolActivity Component Tests', () => {
     fireEvent.click(header);
 
     // Timeline step details should now be visible
-    expect(screen.getByText(/Query: "Mississauga fall scenes"/i)).toBeDefined();
+    expect(screen.getByText(/Query: "Toronto autumn scenes"/i)).toBeDefined();
     expect(screen.getByText('web_search')).toBeDefined();
 
     // Toggle raw developer parameters

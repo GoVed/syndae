@@ -42,11 +42,28 @@ pub struct AgentToolExecutor<'a> {
     pub telemetry: &'a TelemetryCollector,
 }
 
+fn get_path_arg<'a>(args: &'a Value) -> &'a str {
+    ["path", "file_path", "filepath", "file", "filename"]
+        .iter()
+        .find_map(|&k| args.get(k).and_then(|v| v.as_str()))
+        .unwrap_or("")
+}
+
+fn get_text_arg<'a>(args: &'a Value) -> &'a str {
+    ["content", "text", "body", "data"]
+        .iter()
+        .find_map(|&k| args.get(k).and_then(|v| v.as_str()))
+        .unwrap_or("")
+}
+
 impl<'a> AgentToolExecutor<'a> {
     pub async fn execute_tool(&self, name: &str, args: Value) -> ToolCallOutput {
         match name {
             "read_memory" => {
-                let path = args.get("path").and_then(|p| p.as_str()).unwrap_or("");
+                let mut path = get_path_arg(&args);
+                if path.is_empty() {
+                    path = args.get("section").and_then(|s| s.as_str()).filter(|s| s.ends_with(".md")).unwrap_or("");
+                }
                 match self.memory.read_file(path) {
                     Ok(content) => ToolCallOutput {
                         tool_name: name.to_string(),
@@ -88,8 +105,8 @@ impl<'a> AgentToolExecutor<'a> {
                 }
             }
             "write_memory" => {
-                let path = args.get("path").and_then(|p| p.as_str()).unwrap_or("");
-                let content = args.get("content").and_then(|c| c.as_str()).unwrap_or("");
+                let path = get_path_arg(&args);
+                let content = get_text_arg(&args);
                 let section = args.get("section").and_then(|s| s.as_str());
 
                 match self.memory.write_file(path, content, section).await {

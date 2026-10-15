@@ -16,6 +16,12 @@ pub fn build_agent_system_prompt(
         system_context.push_str("Mode: CONVERSATIONAL CHAT. Be warm, natural, and helpful. Avoid technical jargon. Answer simply and directly as a friendly personal assistant.\n");
     }
     system_context.push_str("Read memory and notes when helpful. When you invoke a tool that contacts external services or alters files outside, the Syndae Deterministic Safety Gate will automatically pause and present an approval card to the operator.\n");
+    let now = chrono::Utc::now();
+    system_context.push_str(&format!(
+        "\nCURRENT HOST TELEMETRY:\nHost Date & Time: {} UTC ({})\n",
+        now.format("%Y-%m-%d %H:%M:%S"),
+        now.format("%A")
+    ));
 
     match reasoning_effort.to_lowercase().as_str() {
         "off" => {

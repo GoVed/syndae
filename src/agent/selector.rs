@@ -22,8 +22,16 @@ pub fn minify_tool_schema(schema: &mut Value) {
             map.remove("$defs");
             map.remove("additionalProperties");
 
-            for (_k, v) in map.iter_mut() {
-                minify_tool_schema(v);
+            if let Some(Value::Object(props)) = map.get_mut("properties") {
+                for (_k, v) in props.iter_mut() {
+                    minify_tool_schema(v);
+                }
+            }
+
+            for (k, v) in map.iter_mut() {
+                if k != "properties" {
+                    minify_tool_schema(v);
+                }
             }
         }
         Value::Array(arr) => {
@@ -156,13 +164,18 @@ mod tests {
             "additionalProperties": false,
             "type": "object",
             "properties": {
+                "title": {
+                    "title": "TitleMeta",
+                    "type": "string",
+                    "description": "Subject title"
+                },
                 "recipient": {
                     "title": "Recipient",
                     "type": "string",
                     "description": "Destination address"
                 }
             },
-            "required": ["recipient"]
+            "required": ["title", "recipient"]
         });
 
         minify_tool_schema(&mut schema);
@@ -172,6 +185,9 @@ mod tests {
         assert!(schema.get("$id").is_none());
         assert!(schema.get("additionalProperties").is_none());
         assert_eq!(schema["type"], "object");
+        assert!(schema["properties"].get("title").is_some());
+        assert_eq!(schema["properties"]["title"]["type"], "string");
+        assert!(schema["properties"]["title"].get("title").is_none());
         assert_eq!(schema["properties"]["recipient"]["type"], "string");
         assert_eq!(schema["properties"]["recipient"]["description"], "Destination address");
         assert!(schema["properties"]["recipient"].get("title").is_none());

@@ -273,7 +273,7 @@ fn test_arrest_response_repetition_and_options_sanitization() {
     assert_eq!(acc, "Here is the plan.\n<title>Session Setup</title>");
 
     // 3. Arrest duplicate <options> loop
-    let mut looping_options = r#"Mantra just asked, "whatssup!" — a classic casual opener!
+    let mut looping_options = r#"Alex just asked, "whatssup!" — a classic casual opener!
 
 <options>
 <option>Translate and send: "Just checking in. What's new with you?"</option>

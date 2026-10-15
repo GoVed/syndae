@@ -203,7 +203,24 @@ impl AgentRunner {
                 };
 
                 let tool_start = Instant::now();
-                let (output, success, status) = if tool_permitted {
+                let repeat_count = executed_tools_history.iter().filter(|c| {
+                    c.get("tool_name").and_then(|v| v.as_str()) == Some(&tool_name) && c.get("arguments") == Some(&final_args)
+                }).count();
+
+                let (output, success, status) = if !tool_permitted {
+                    had_tool_rejection = true;
+                    let msg = format!(
+                        "Tool execution rejected by human operator. Reason: {}",
+                        rejection_reason.as_deref().unwrap_or("Action not permitted by user.")
+                    );
+                    (msg, false, "rejected")
+                } else if repeat_count >= 2 {
+                    let warn = format!(
+                        "Tool '{}' with identical arguments was already executed {} times in this turn with the same result. Do not repeat the identical call. Try an alternative query/tool or formulate your response directly.",
+                        tool_name, repeat_count
+                    );
+                    (warn, false, "duplicate_circuit_break")
+                } else {
                     let res = self.execute_tool(&tool_name, final_args.clone()).await;
                     if tool_name == "complete_onboarding"
                         || (tool_name == "write_memory"
@@ -220,13 +237,6 @@ impl AgentRunner {
                         }
                     }
                     (res.content, res.success, "completed")
-                } else {
-                    had_tool_rejection = true;
-                    let msg = format!(
-                        "Tool execution rejected by human operator. Reason: {}",
-                        rejection_reason.as_deref().unwrap_or("Action not permitted by user.")
-                    );
-                    (msg, false, "rejected")
                 };
 
                 executed_any_tool = true;

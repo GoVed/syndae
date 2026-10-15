@@ -108,8 +108,10 @@ pub fn sanitize_message_content(content: &str, role: &str) -> String {
     content.to_string()
 }
 
+pub const MAX_ACTIVE_VERBATIM_TURNS: usize = 24;
+
 /// Auto-compresses message history to fit strictly within `max_prompt_budget` while preserving
-/// the system prompt and the most recent conversation context.
+/// the system prompt and the active conversation context window (last 20-30 turns).
 pub fn prepare_auto_compressed_messages(
     messages: Vec<ChatMessageParam>,
     max_prompt_budget: usize,
@@ -127,20 +129,40 @@ pub fn prepare_auto_compressed_messages(
         })
         .collect();
 
-    if estimate_messages_tokens(&sanitized) <= max_prompt_budget {
-        return sanitized;
-    }
-
     // Separate system message(s) from conversation history
     let (system_messages, mut conv_messages): (Vec<_>, Vec<_>) =
         sanitized.into_iter().partition(|m| m.role == "system");
 
-    // Preserve the last 4 turns verbatim if possible
-    let keep_verbatim_count = 4.min(conv_messages.len());
+    // If within active conversation window and within budget, return as-is
+    if conv_messages.len() <= MAX_ACTIVE_VERBATIM_TURNS && estimate_messages_tokens(&conv_messages) <= max_prompt_budget {
+        let mut full = system_messages;
+        full.extend(conv_messages);
+        return full;
+    }
+
+    // Preserve active recent conversation window (or tight 4-turn window under token pressure)
+    let keep_verbatim_count = if estimate_messages_tokens(&conv_messages) > max_prompt_budget {
+        4.min(conv_messages.len())
+    } else {
+        MAX_ACTIVE_VERBATIM_TURNS.min(conv_messages.len())
+    };
     let split_idx = conv_messages.len().saturating_sub(keep_verbatim_count);
 
     let older_messages = conv_messages.drain(..split_idx).collect::<Vec<_>>();
-    let recent_messages = conv_messages;
+    let mut recent_messages = conv_messages;
+
+    // Deduplicate consecutive identical assistant responses in recent turns to prevent attractor loops
+    let mut last_asst_prefix = String::new();
+    for m in recent_messages.iter_mut() {
+        if m.role == "assistant" {
+            let prefix: String = m.content.chars().take(60).collect();
+            if !prefix.is_empty() && prefix == last_asst_prefix {
+                m.content = "[Acknowledged previous update]".to_string();
+            } else {
+                last_asst_prefix = prefix;
+            }
+        }
+    }
 
     let mut result = system_messages;
 
@@ -245,4 +267,34 @@ pub fn prepare_auto_compressed_messages(
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cap_active_verbatim_turns_and_deduplicate() {
+        let mut msgs = vec![ChatMessageParam {
+            role: "system".to_string(),
+            content: "You are Syndae.".to_string(),
+            name: None, tool_call_id: None, tool_calls: None, images: None,
+        }];
+
+        for i in 0..40 {
+            let role = if i % 2 == 0 { "user" } else { "assistant" };
+            let content = if role == "assistant" {
+                "The automated system status report has been generated and filed in the workspace.".to_string()
+            } else {
+                format!("User message {}", i)
+            };
+            msgs.push(ChatMessageParam {
+                role: role.to_string(), content, name: None, tool_call_id: None, tool_calls: None, images: None,
+            });
+        }
+
+        let compressed = prepare_auto_compressed_messages(msgs, 100_000);
+        assert!(compressed.iter().any(|m| m.content.contains("[Prior Conversation Context (Auto-Compressed Summary)]")));
+        assert!(compressed.iter().any(|m| m.content == "[Acknowledged previous update]"));
+    }
 }
